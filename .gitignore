@@ -1,0 +1,13 @@
+# 원본 데이터·DB 파일은 보안상 깃허브에 올리지 않음
+data/
+*.db
+*.csv
+!reports/metrics.csv
+# 학습된 모델(용량 큼) — 각자 train 실행으로 생성
+models/
+# 비밀번호가 들어있는 환경설정
+.env
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
