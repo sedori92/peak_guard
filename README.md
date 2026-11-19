@@ -1,61 +1,113 @@
-# 피크가드 (PeakGuard) — 건물 전체·채널별 전력 피크 예측
+# 피크가드 (PeakGuard) — 실증 전력데이터 기반 피크 예측·관제
 
-생활지원로봇센터(1~4층) 전력량계 8대·채널 96개의 15분 수요전력 데이터(약 100만 건)를
-DB(Database, 데이터베이스)에 적재하고, **LightGBM · RandomForest · Bi-LSTM** 세 모델로
-**다음날 전체 피크와 채널별 피크(kW, 발생 시각)** 를 예측합니다.
+생활지원로봇센터(1~4층) 전력량계 8대·채널 96개의 15분 수요전력(약 101만 건)을 **SQLite DB**에 적재하고,
+**다음 1시간(15분 × 4)** 의 건물 전체·호실 채널 수요전력을 예측해 **관리자 화면**(관제 현황 · 호실 기여도 · 영향요인)에 연결합니다.
 
 ```
-CSV 원본 ──▶ load_data.py ──▶ DB (Supabase PostgreSQL 또는 로컬 SQLite)
-                                  │
-                                  ▼
-                        train.py : 학습 · 평가 · 다음날 예측 ──▶ DB 저장 + reports/
-                        predict.py : 저장된 모델로 다음날 예측 ──▶ DB 저장
+CSV 8개 ─▶ load_data.py ─┐
+ASOS 기상 ─▶ load_weather.py ─┤──▶ SQLite (peakguard.db) ◀── shortterm.py : 학습·평가·예측 저장
+                              │                                (기준모델 2종 + LightGBM · RandomForest · Bi-LSTM)
+                              └──▶ api.py (FastAPI) ──▶ web/dashboard.html (관리자 화면)
 ```
 
-## 1. 폴더 구조
-
-| 경로 | 설명 |
-|---|---|
-| `db/schema.sql` | 테이블 정의서(SQL). Supabase SQL Editor에 그대로 실행 가능 |
-| `peakguard/db.py` | DB 연결·테이블 정의 (SQLAlchemy) |
-| `peakguard/load_data.py` | CSV 전처리 후 DB 적재 |
-| `peakguard/dataset.py` | DB → '날짜 × 96칸(15분)' 행렬 변환, 결측 보정 |
-| `peakguard/features.py` | 트리 모델용 특징(전날·1주 전·같은 유형 날 값 등) |
-| `peakguard/models.py` | Naive(기준선), LightGBM, RandomForest, Bi-LSTM |
-| `peakguard/train.py` | 학습 → 평가 → 다음날 예측 → DB 저장 |
-| `peakguard/predict.py` | 저장된 모델로 다음날 예측만 실행 |
-| `reports/` | 평가 지표(metrics.csv), 예측 그래프 |
-
-> 원본 CSV(`data/`), DB 파일, 학습된 모델(`models/`), 비밀번호(`.env`)는 보안·용량 문제로 깃허브에 올리지 않습니다.
-
-## 2. 실행 방법
+## 1. 빠른 시작
 
 ```bash
 pip install -r requirements.txt
 
-# (1) 원본 CSV 8개를 data/raw/ 에 넣기
-# (2) DB 연결: .env.example 을 .env 로 복사 후 Supabase 주소 입력 (비워두면 로컬 SQLite 사용)
+# (1) 데이터 넣기:  data/raw/ 에 전력 CSV 8개,  data/weather/ 에 ASOS 분자료 CSV(SURFACE_ASOS_156_MI_*.csv)
+# (2) DB 구축 (SQLite 파일 peakguard.db 생성, 약 10초)
 python -m peakguard.load_data --data-dir data/raw
+python -m peakguard.load_weather --weather-dir data/weather
 
-# (3) 학습·평가·다음날 예측 (CPU 기준 약 15~20분, Bi-LSTM 이 대부분)
-python -m peakguard.train
-python -m peakguard.train --models LightGBM RandomForest   # 일부 모델만
+# (3) 다음 1시간 예측 학습·평가·저장 (CPU 2코어 약 6분)
+python -m peakguard.shortterm
 
-# (4) 새 데이터 적재 후 다음날 예측만
-python -m peakguard.predict
+# (4) 관리자 화면 실행 → 브라우저에서 http://localhost:8000
+uvicorn peakguard.api:app --port 8000
+
+# (선택) 서버 없이 열리는 시연용 HTML 한 파일 만들기
+python -m peakguard.export_static --date 2026-10-28 --model LightGBM
 ```
 
-**Google Colab에서 실행**: 런타임에서 아래처럼 실행하면 됩니다.
-```python
-!git clone https://github.com/<계정>/peakguard.git
-%cd peakguard
-!pip install -q -r requirements.txt
-# 왼쪽 파일 탭에서 data/raw/ 폴더에 CSV 업로드 (또는 구글 드라이브 마운트)
-!python -m peakguard.load_data --data-dir data/raw
-!python -m peakguard.train
-```
+화면 오른쪽 위에서 **날짜**와 **모델**을 바꾸면 그 조건으로 다시 조회합니다.
 
-## 3. 데이터베이스 설계
+## 2. 폴더 구조
+
+| 경로 | 설명 |
+|---|---|
+| `db/schema.sql` | 테이블 정의서(SQL) — 측정값·채널·예측·평가·피크 기준 등 |
+| `peakguard/db.py` | DB 연결 (기본 SQLite, `.env` 의 DATABASE_URL 이 있으면 그 DB) |
+| `peakguard/load_data.py` | 전력 CSV 전처리 후 적재 |
+| `peakguard/load_weather.py` | 기상청 ASOS 분자료 → 15분 집계 적재 (화면 기온 표시용) |
+| `peakguard/shortterm.py` | **다음 1시간(15분×4) 예측** — 학습·평가·피크 기준·SHAP·DB 저장 |
+| `peakguard/api.py` | 조회 API + 관리자 화면 제공 (FastAPI) |
+| `web/dashboard.html` | 관리자 화면 (MVP 시안을 API와 연결) |
+| `peakguard/export_static.py` | 하루치 화면을 서버 없는 HTML로 내보내기 |
+| `peakguard/train.py`, `predict.py` 등 | (부록) 하루 전 일 피크 예측 |
+
+> 원본 CSV(`data/`), DB 파일, 학습된 모델(`models/`), 내보낸 HTML, 비밀번호(`.env`)는 깃허브에 올리지 않습니다.
+
+## 3. 다음 1시간 예측 (요구사항 FR-AI-001~003)
+
+- **발행 시각 t (15분마다)** 에 그때까지의 실측만으로 t+15·30·45·60분 수요전력(kW)을 예측
+- **대상**: 건물 전체 합산(TOTAL) + 활성 채널 61개 (전 기간 0kW 채널 35개는 0으로 표시)
+- **입력 특징**: 현재 수요전력·현재전력 순간값, 15분~2시간 전 값, 15분 변화량, 최근 1시간 최대·4시간 평균, 전일·전주 같은 시각, 예측 시각(시간대)·요일·주말/공휴일, 선행시간
+- **모델**: 기준모델 2종(전일 동일시각, 최근값 유지) / LightGBM / RandomForest / Bi-LSTM(최근 6시간 입력, 전체+채널 공동 학습)
+- **학습·평가 분할**: 2026-09-27 이전 학습, **2026-09-28 ~ 11-02 평가**(학습에 쓰지 않은 기간, 10/6~10/20 계측 공백 제외). 모든 모델이 예측한 칸만 비교(공통 표본)
+- **피크 기준**: 날짜별로 직전 30일 건물 합산 15분 수요전력의 95백분위수(P95). 다음 1시간 중 하나라도 기준 이상이면 "피크 위험", 95% 이상이면 "주의"
+- **예측 설명**: LightGBM 전체 합산 1시간 뒤 예측의 SHAP(SHapley Additive exPlanations) 기여도(kW)
+
+### 결과 — 건물 전체 합산 (다음 1시간 4개 시점 평균)
+
+| 모델 | MAE (kW) | RMSE (kW) | MAPE | 15분 | 30분 | 45분 | 60분 |
+|---|---|---|---|---|---|---|---|
+| 전일 동일시각 (기준) | 2.889 | 5.277 | 20.6% | 2.89 | 2.89 | 2.89 | 2.89 |
+| 최근값 유지 (기준) | 0.855 | 1.564 | 5.8% | 0.47 | 0.73 | 0.98 | 1.23 |
+| **LightGBM** | **0.577** | **0.875** | **4.1%** | 0.41 | 0.55 | 0.64 | 0.71 |
+| RandomForest | 0.585 | 0.916 | 4.3% | 0.41 | 0.54 | 0.65 | 0.74 |
+| Bi-LSTM | 0.866 | 1.148 | 6.5% | — | — | — | — |
+
+채널별(활성 61개) 평균 MAE: RandomForest 0.027 · 최근값 유지 0.028 · LightGBM/Bi-LSTM 0.030 kW
+
+**피크 사전 감지** (다음 1시간 중 기준 초과 여부, 평가 1,979개 발행 중 실제 피크 50건)
+
+| 모델 | 정밀도 | 재현율 | F1 |
+|---|---|---|---|
+| 최근값 유지 | 0.885 | 0.46 | 0.605 |
+| RandomForest | 0.595 | 0.50 | 0.543 |
+| LightGBM | 0.443 | 0.54 | 0.486 |
+| Bi-LSTM | 0.941 | 0.32 | 0.478 |
+
+**해석**: LightGBM·RF는 15분 오차를 최근값 유지 대비 약 32% 줄였고 화면 기본 모델은 LightGBM입니다.
+Bi-LSTM은 채널과 함께 학습하다 보니 전체 합산에서는 기준모델 수준에 그쳤습니다.
+피크 감지는 실제 피크가 50건뿐이라 모델 간 차이가 크지 않으며, 재현율(놓치지 않는 비율)을 높이려면 기준을 조금 낮춘 "주의" 단계 활용이 필요합니다.
+
+### API (FR-AD-002)
+
+| 주소 | 내용 |
+|---|---|
+| `GET /api/days` | 재생 가능한 날짜·모델 목록 |
+| `GET /api/replay?date=2026-10-28&model=LightGBM` | 하루치 화면 데이터 (실측·예측·피크 기준·호실·SHAP·성능) |
+| `GET /api/forecast?issued_at=2026-10-28 14:00:00&model=LightGBM` | 특정 발행 시각의 15분×4 예측 (전체 + 호실) |
+| `GET /api/eval` | 모델 성능 (전체·채널, 선행시간별) + 피크 감지 성능 |
+| `GET /docs` | 자동 생성 API 문서 |
+
+### 한계
+- 실시간 수집이 아니라 **과거 데이터 재생**입니다. 화면의 예측은 평가기간(학습에 쓰지 않은 기간) 결과입니다.
+- 호실 채널 ↔ 실제 호실명 대응표가 없어 "4층 04번"처럼 계량기·채널 번호로 표시합니다.
+- 기온은 화면 표시용이며 모델 입력에는 쓰지 않았습니다.
+- 피크 기준(P95)은 상대 기준입니다. 계약전력 등 고정 기준은 기업 확인 후 추가해야 합니다.
+- 인증·권한(FR-AD-001)과 알림센터(FR-AL-004~006)는 아직 구현하지 않았습니다.
+
+---
+
+# 부록 A. 하루 전 일 피크 예측 (`train.py`)
+
+다음날 하루치 96칸(15분)을 전날 자정 기준으로 예측해 일 피크(kW)·피크 시각을 구합니다.
+`python -m peakguard.train` 으로 실행하며 결과는 `model_run`, `peak_forecast`, `forecast_slot` 테이블에 저장됩니다.
+
+## A-1. 데이터베이스 설계 (공통 테이블)
 
 | 테이블 | 내용 | 키·제약조건 |
 |---|---|---|
@@ -68,7 +120,7 @@ python -m peakguard.predict
 | `v_total_demand` (뷰) | 건물 전체 15분 수요전력 합계 | — |
 
 - `peak_forecast.channel_id` 가 **NULL 이면 '전체(건물 합계)'** 예측입니다.
-- PostgreSQL 기준 전체 용량 약 **165MB** → Supabase 무료 요금제(500MB) 안에 들어갑니다.
+- 측정값 적재 후 SQLite 파일 약 100MB, 단기 예측 결과까지 저장하면 약 330MB입니다. (PostgreSQL·Supabase로 옮길 때는 `.env` 에 DATABASE_URL 지정)
 - `channel.room_name` 은 비어 있습니다. 기업에서 채널별 호실명을 받으면 입력하세요.
 
 ### 전처리 규칙
@@ -78,7 +130,7 @@ python -m peakguard.predict
 4. 1시간 이하 끊김은 선형 보간, 그보다 긴 결측일은 학습 대상에서 제외(입력으로 쓸 때만 직전 같은 유형 날 값으로 대체)
 5. 전체 합계(TOTAL)는 61개 채널이 모두 있는 시각만 계산
 
-## 4. 예측 방법
+## A-2. 예측 방법
 
 - **예측 대상**: 다음날 하루치 15분 수요전력 96칸 → 그 최댓값 = **일 피크(kW)**, 최댓값 시각 = **피크 시각**
 - **대상 시계열**: 전체(건물 합계) 1개 + 활성 채널 61개
@@ -96,7 +148,7 @@ python -m peakguard.predict
 - 시간 순서대로 분할: 마지막 21일을 평가기간, 그 이전을 학습기간 (Bi-LSTM은 학습기간 마지막 14일로 조기 종료)
 - 지표: 15분 MAE(Mean Absolute Error, 평균절대오차), 피크 MAE, 피크 MAPE(Mean Absolute Percentage Error, 평균절대백분율오차, 실제 피크 0.1kW 미만 채널-일 제외), 피크 시각 ±1시간 적중률
 
-## 5. 결과
+## A-3. 결과
 
 평가기간: 전체 합계가 온전한 마지막 20일 (2026-09-28 ~ 11-01, 10/6~10/20 계측 공백 제외)
 학습기간: 2026-07-06 ~ 09-27 (84일)
@@ -132,7 +184,7 @@ python -m peakguard.predict
 
 > 실행 시간(CPU 2코어 기준): 적재 약 25초(PostgreSQL), LightGBM 20초, RandomForest 80초, Bi-LSTM 약 8분
 
-## 6. 다음 단계
+## A-4. 다음 단계
 - Streamlit 대시보드에서 `peak_forecast`, `forecast_slot`, `v_total_demand` 를 읽어 시각화
 - 피크 판정 기준(최근 30일 P95, 계약전력 등)과 예측 피크 비교 → 사전 경보
 - 채널 호실명 입력 후 '호실별 피크 영향도' 계산

@@ -82,3 +82,55 @@ CREATE OR REPLACE VIEW v_total_demand AS
 SELECT measured_at, SUM(demand_kw) AS total_demand_kw, COUNT(*) AS n_channels
 FROM measurement
 GROUP BY measured_at;
+
+-- =====================================================================
+-- [단기 예측] 다음 1시간(15분 × 4) — 관리자 화면이 사용하는 테이블
+-- (python -m peakguard.shortterm 실행 시 자동 생성·적재. SQLite 기준이며 PostgreSQL에서도 동일)
+-- =====================================================================
+
+-- 8) 기상청 ASOS 광주(156) 15분 집계 : 화면 기온 표시·탐색 분석용 (모델 입력에는 미사용)
+CREATE TABLE IF NOT EXISTS weather_15m (
+    measured_at    TIMESTAMP PRIMARY KEY,         -- 구간 끝 시각 (t-15분, t]
+    temperature_c  REAL,                          -- 15개 관측이 모두 있을 때만 평균
+    humidity_pct   REAL,
+    wind_speed_m_s REAL,
+    valid_minutes  INTEGER NOT NULL
+);
+
+-- 9) 15분 × 4 예측값 : series_id = 'TOTAL'(건물 합산) 또는 channel_id(호실 채널)
+CREATE TABLE IF NOT EXISTS st_forecast (
+    model_name    VARCHAR(20) NOT NULL,           -- 전일 동일시각 / 최근값 유지 / LightGBM / RandomForest / BiLSTM
+    series_id     VARCHAR(16) NOT NULL,
+    issued_at     TIMESTAMP   NOT NULL,           -- 발행 시각 (이 시각까지의 실측만 사용)
+    horizon_min   INTEGER     NOT NULL CHECK (horizon_min IN (15,30,45,60)),
+    predicted_kw  REAL        NOT NULL,
+    PRIMARY KEY (model_name, series_id, issued_at, horizon_min)
+);
+
+-- 10) 성능 지표 : horizon_min = 0 은 4개 구간 평균
+CREATE TABLE IF NOT EXISTS st_eval (
+    model_name VARCHAR(20) NOT NULL, scope VARCHAR(10) NOT NULL CHECK (scope IN ('TOTAL','CHANNEL')),
+    horizon_min INTEGER NOT NULL, mae REAL, rmse REAL, mape REAL, n INTEGER, n_mape INTEGER,
+    test_start VARCHAR(10), test_end VARCHAR(10),
+    PRIMARY KEY (model_name, scope, horizon_min)
+);
+
+-- 11) 피크 사전 감지 성능 (다음 1시간 중 하나라도 피크 기준 이상)
+CREATE TABLE IF NOT EXISTS st_peak_eval (
+    model_name VARCHAR(20) PRIMARY KEY, precision REAL, recall REAL, f1 REAL,
+    tp INTEGER, fp INTEGER, fn INTEGER, n INTEGER
+);
+
+-- 12) 예측 설명 : LightGBM 건물 합산 1시간 뒤 예측의 SHAP 기여도(kW)
+CREATE TABLE IF NOT EXISTS st_explain (
+    issued_at TIMESTAMP NOT NULL, feature VARCHAR(30) NOT NULL, contribution_kw REAL NOT NULL,
+    PRIMARY KEY (issued_at, feature)
+);
+
+-- 13) 날짜별 피크 기준 : 직전 30일 건물 합산 15분 수요전력의 95백분위수(P95)
+CREATE TABLE IF NOT EXISTS peak_threshold (
+    date VARCHAR(10) PRIMARY KEY, threshold_kw REAL, n_samples INTEGER, method VARCHAR(40) NOT NULL
+);
+
+-- 14) 실행 정보 (평가기간, 중요도 순위, 호실 채널 목록 등 JSON)
+CREATE TABLE IF NOT EXISTS st_meta ( key VARCHAR(40) PRIMARY KEY, value TEXT );
