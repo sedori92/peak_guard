@@ -406,7 +406,7 @@ async function loadSumCmp() {
   CMP_LOADING = false;
   if (!CMP) { $('#cmpsplit').textContent = '비교 데이터를 불러오지 못했습니다'; return; }
   const sp = CMP.splits;
-  if (sp) $('#cmpsplit').textContent = `학습 ${sp.train[0].slice(0, 10)}~${sp.train[1].slice(0, 10)} · 검증 ${sp.val[0].slice(0, 10)}~${sp.val[1].slice(0, 10)} · 시험 ${sp.test[0]}~${sp.test[1].slice(5)} (팀원과 같은 기간)`;
+  if (sp) $('#cmpsplit').textContent = `학습 ${sp.train[0].slice(0, 10)}~${sp.train[1].slice(0, 10)} · 검증 ${sp.val[0].slice(0, 10)}~${sp.val[1].slice(0, 10)} · 시험 ${sp.test[0]}~${sp.test[1].slice(5)}`;
   drawCmpPerf();
   $('#cmpm').onchange = () => drawSumCmp(F[i]); $('#cmph').onchange = () => drawSumCmp(F[i]);
   drawSumCmp(F[i]);

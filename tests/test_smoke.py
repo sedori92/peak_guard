@@ -97,7 +97,7 @@ def test_report_peaks_and_xlsx(day):
 
 
 def test_split_and_sum_models(day):
-    """팀원과 같은 기간 분할 + 채널합산 모델 + 오분류표."""
+    """학습·검증·시험 기간 분할 + 채널합산 모델 + 오분류표."""
     e = client.get("/api/eval").json()
     assert e["splits"]["train"][1] < "2026-09-15" and e["splits"]["test"][0] == "2026-10-20 15:15"
     names = {(r["model_name"], r["split"]) for r in e["peak_detection"]}
