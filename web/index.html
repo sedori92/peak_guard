@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>피크가드 관리자 화면</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="static/style.css">
+
+</head>
+<body>
+<canvas id="bgnet" aria-hidden="true"></canvas>
+<script src="static/bg.js"></script>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V6z"/><path d="m13 7-3 5h4l-3 5"/></svg></span>피크가드</div>
+    <span class="site">광주테크노파크 생활로봇지원센터 · 96개 계측채널</span>
+    <nav class="tabs" aria-label="화면 선택">
+      <a href="#overview" data-s="overview">관제 현황</a>
+      <a href="#rooms" data-s="rooms">호실·채널</a>
+      <a href="#factors" data-s="factors">영향요인</a>
+    </nav>
+    <div class="clock"><span class="live"><i></i>재생 중</span><span id="clk">—</span></div>
+    <div class="ctrl"><select id="dsel" aria-label="재생 날짜"></select><select id="msel" aria-label="예측 모델"></select><button id="play" type="button">일시정지</button><button id="spd" type="button">속도 ×1</button></div>
+  </header>
+
+  <section class="status" id="status" aria-live="polite">
+    <span class="pill ok" id="pill">정상</span>
+    <div class="msg" id="msg">—</div>
+    <div class="thr">피크 기준 (최근 30일 95번째 백분위수)<b id="thr">—</b></div>
+  </section>
+
+  <!-- 1. 관제 현황 -->
+  <section class="scr" id="s-overview">
+    <div class="kpis">
+      <div class="kpi"><div class="l">현재 수요전력 (직전 15분 평균)</div><div class="v" id="k1">—</div><div class="s">96개 계측채널 합산</div></div>
+      <div class="kpi"><div class="l">현재전력 (순간값, 실시간)</div><div class="v" id="k2">—</div><div class="s" id="k2s">15분 사이 순간 변동</div></div>
+      <div class="kpi"><div class="l">다음 1시간 최대 예상</div><div class="v" id="k3">—</div><div class="s" id="k3s">—</div></div>
+      <div class="kpi"><div class="l">기온 (기상청 광주)</div><div class="v" id="k4">—</div><div class="s">오늘 최대 수요 <b id="k5" style="font-family:var(--f-num)">—</b></div></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h2>수요전력 실시간 추이와 다음 1시간 예측 <span class="sub">15분 단위 · <span class="js-model">LightGBM</span></span></h2>
+        <div class="legend"><span><i class="sw" style="background:var(--ink)"></i>실측 수요전력</span><span><i class="sw" style="background:var(--pred)"></i>예측 (15분 × 4)</span><span><i class="sw" style="background:var(--bad)"></i>피크 기준</span><span><i class="sw" style="background:var(--yellow);height:8px;opacity:.6"></i>현재전력 순간값</span></div>
+        <svg class="chart" id="chart" viewBox="0 0 900 300" preserveAspectRatio="none" role="img" aria-label="수요전력 추이와 예측"></svg>
+      </div>
+      <div class="card">
+        <h2>점검 우선 호실 Top 5 <span class="sub" id="topat">—</span></h2>
+        <div class="rooms" id="top5"></div>
+        <p class="note">예상 피크 시각의 호실 채널별 예측 수요전력 (선택한 모델의 채널 예측값). 호실 코드는 기업 대응표 수령 후 호실명으로 표시합니다.</p>
+        <a href="#rooms" class="note" style="color:var(--amber);font-weight:600">호실 기여도 자세히 보기 →</a>
+      </div>
+    </div>
+    <div class="floors" id="floors"></div>
+  </section>
+
+  <!-- 2. 호실 기여도 -->
+  <section class="scr" id="s-rooms" hidden>
+    <div class="card">
+      <h2>합산 수요전력 구성 <span class="sub" id="sharet">—</span></h2>
+      <div class="share" id="share"></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h2>층별 호실 배치도 <span class="sub">색이 진할수록 현재 사용량이 큼 · 빨간 테두리 = 예상 피크 시각 Top 5</span></h2>
+        <div class="plan" id="plan"></div>
+      </div>
+      <div class="card">
+        <h2>호실 순위 <span class="sub">채움 = 현재, 테두리 = 예상 피크 시각</span></h2>
+        <div class="bars" id="bars"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>채널별 피크 선 <span class="sub" id="cht">—</span></h2>
+      <div class="chctl"><label for="csel">채널</label><select id="csel" aria-label="채널 선택"></select><span class="note" id="chnote">배치도의 호실 칸을 눌러도 바뀝니다.</span></div>
+      <div class="legend"><span><i class="sw" style="background:var(--ink)"></i>채널 실측</span><span><i class="sw" style="background:var(--pred)"></i>예측 (15분 × 4)</span><span><i class="sw" style="background:var(--bad)"></i>채널 피크 기준 (직전 30일 P95)</span></div>
+      <svg class="chart" id="chchart" viewBox="0 0 900 260" preserveAspectRatio="none" role="img" aria-label="채널 수요전력과 예측"></svg>
+    </div>
+  </section>
+
+  <!-- 3. 영향요인 -->
+  <section class="scr" id="s-factors" hidden>
+    <div class="grid2">
+      <div class="card">
+        <h2>이번 1시간 뒤 예측은 왜 이 값인가 <span class="sub" id="wft">—</span></h2>
+        <svg class="wf" id="wf" viewBox="0 0 900 360" preserveAspectRatio="none" role="img" aria-label="예측 영향요인"></svg>
+        <p class="note">SHAP(SHapley Additive exPlanations): 평균 예측값에서 출발해 각 변수가 예측을 얼마나 올리거나(주황) 내렸는지(회색) kW로 보여 줍니다.</p>
+      </div>
+      <div class="card">
+        <h2>전체 영향요인 순위 <span class="sub">평가기간 평균 |SHAP| · LightGBM 전체 합산</span></h2>
+        <svg id="imp" viewBox="0 0 420 330" style="width:100%;height:330px" role="img" aria-label="전체 영향요인"></svg>
+      </div>
+    </div>
+    <div class="card">
+      <h2>모델 성능 <span class="sub">평가 <span class="js-test">—</span> · 건물 전체 합산 · 다음 1시간 4개 시점 평균 · 공통 표본</span></h2>
+      <div style="overflow-x:auto"><table class="perf" id="perf"></table></div>
+    </div>
+  </section>
+
+  <div class="foot"><span>실증 데이터 재생: <b id="dayl">—</b> · 15분 칸을 약 1.6초에 한 칸씩 재생 · 예측은 평가기간(학습에 쓰지 않은 기간) 결과</span><span>식스센스 · 피크가드 MVP 시안</span></div>
+</div>
+
+<script src="static/app.js"></script>
+</body>
+</html>

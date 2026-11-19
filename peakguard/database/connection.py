@@ -1,22 +1,17 @@
-"""DB 연결과 테이블 정의 (SQLAlchemy).
+"""[2] DB 구축 — 연결과 기본 테이블 정의 (SQLAlchemy)
 
-- 환경변수 DATABASE_URL 이 있으면 그 DB(예: Supabase PostgreSQL)에 연결
-- 없으면 로컬 SQLite 파일(peakguard.db)을 사용 → 연습·테스트용
-테이블 구조는 db/schema.sql 과 동일합니다.
+- 기본: 로컬 SQLite 파일(peakguard.db)
+- .env 에 DATABASE_URL 이 있으면 그 DB(예: PostgreSQL)에 연결
+테이블 구조는 db/schema.sql 과 같습니다. 예측·기상 테이블은 tables_forecast.py 에 있습니다.
 """
 from __future__ import annotations
 
-import os
-
-from dotenv import load_dotenv
 from sqlalchemy import (
     Boolean, CheckConstraint, Column, Date, DateTime, Float, ForeignKey, Integer,
     MetaData, PrimaryKeyConstraint, SmallInteger, String, Table, Text,
     UniqueConstraint, create_engine, func, text,
 )
 from sqlalchemy.engine import Engine
-
-load_dotenv()
 
 metadata = MetaData()
 
@@ -103,12 +98,16 @@ FROM measurement GROUP BY measured_at
 
 
 def get_engine(url: str | None = None) -> Engine:
-    url = url or os.getenv("DATABASE_URL") or "sqlite:///peakguard.db"
+    from ..config import DATABASE_URL
+    url = url or DATABASE_URL
     return create_engine(url, pool_pre_ping=True)
 
 
 def create_schema(engine: Engine) -> None:
+    """기본 테이블 + 예측·기상 테이블 + 뷰를 한 번에 생성 (이미 있으면 그대로 둠)."""
+    from .tables_forecast import meta as forecast_meta
     metadata.create_all(engine)
+    forecast_meta.create_all(engine)
     sql = VIEW_SQL
     if engine.dialect.name == "postgresql":
         sql = sql.replace("CREATE VIEW IF NOT EXISTS", "CREATE OR REPLACE VIEW")

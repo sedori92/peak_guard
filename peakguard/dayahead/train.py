@@ -25,7 +25,7 @@ from sqlalchemy.engine import Engine
 
 from . import features
 from .dataset import SLOTS, TOTAL, DayData, read_wide, set_scale, to_days
-from .db import forecast_slot, get_engine, model_run, peak_forecast
+from ..database.connection import forecast_slot, get_engine, model_run, peak_forecast
 from .models import BiLSTMModel, NaiveModel, TreeModel, lstm_tensors
 
 ALL_MODELS = ["Naive", "LightGBM", "RandomForest", "BiLSTM"]

@@ -16,7 +16,7 @@ from sqlalchemy import delete, select
 
 from . import features
 from .dataset import TOTAL, read_wide, to_days
-from .db import forecast_slot, get_engine, model_run, peak_forecast
+from ..database.connection import forecast_slot, get_engine, model_run, peak_forecast
 from .models import BiLSTMModel, lstm_tensors
 from .train import _ts
 

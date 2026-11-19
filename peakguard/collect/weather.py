@@ -1,7 +1,8 @@
-"""기상청 ASOS 광주(156) 분자료 → 15분 집계 → DB(weather_15m)
+"""데이터 수집·전처리 — 기상청 ASOS 광주(156) 분자료 → 15분 집계 → DB(weather_15m)
 
 사용법
-    python -m peakguard.load_weather --weather-dir data/weather
+    python run.py 2                       # DB 구축 때 함께 적재
+    python -m peakguard.collect.weather --weather-dir data/weather
 
 집계 규칙 (데이터명세서 D02와 동일)
   - 15분 구간 (t-15분, t] 의 1분 관측을 모아 평균
@@ -14,19 +15,10 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
-from sqlalchemy import Column, DateTime, Float, Integer, MetaData, Table, text
+from sqlalchemy import text
 
-from .db import get_engine
-
-meta = MetaData()
-weather_15m = Table(
-    "weather_15m", meta,
-    Column("measured_at", DateTime, primary_key=True),       # 구간 끝 시각(한국시간)
-    Column("temperature_c", Float),
-    Column("humidity_pct", Float),
-    Column("wind_speed_m_s", Float),
-    Column("valid_minutes", Integer, nullable=False),
-)
+from ..config import DATA_WEATHER
+from ..database.connection import create_schema, get_engine
 
 COLS = {"일시": "observed_at", "기온(°C)": "temperature_c", "습도(%)": "humidity_pct", "풍속(m/s)": "wind_speed_m_s"}
 
@@ -59,21 +51,28 @@ def aggregate(d: pd.DataFrame) -> pd.DataFrame:
     return out.reset_index()
 
 
-def main() -> None:
-    ap = argparse.ArgumentParser(description="ASOS 기상 분자료를 15분으로 집계해 DB에 적재")
-    ap.add_argument("--weather-dir", default="data/weather", type=Path)
-    ap.add_argument("--db-url", default=None)
-    a = ap.parse_args()
-    engine = get_engine(a.db_url)
-    meta.create_all(engine)
+def load(weather_dir: Path = DATA_WEATHER, db_url: str | None = None) -> None:
+    engine = get_engine(db_url)
+    create_schema(engine)
+    if not list(Path(weather_dir).glob("*ASOS*.csv")):
+        print(f"  [건너뜀] {weather_dir} 에 ASOS CSV 가 없습니다 (화면 기온은 빈칸으로 표시)")
+        return
     print("1) ASOS 분자료 읽기")
-    agg = aggregate(read_asos(a.weather_dir))
+    agg = aggregate(read_asos(weather_dir))
     with engine.begin() as con:
         con.execute(text("DELETE FROM weather_15m"))
     if engine.dialect.name == "sqlite":
         agg["measured_at"] = agg["measured_at"].dt.strftime("%Y-%m-%d %H:%M:%S")
     agg.to_sql("weather_15m", engine, if_exists="append", index=False, chunksize=20_000)
     print(f"완료: weather_15m {len(agg):,}행 (기온 결측 {agg.temperature_c.isna().sum()}행)")
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description="ASOS 기상 분자료를 15분으로 집계해 DB에 적재")
+    ap.add_argument("--weather-dir", default=DATA_WEATHER, type=Path)
+    ap.add_argument("--db-url", default=None)
+    a = ap.parse_args()
+    load(a.weather_dir, a.db_url)
 
 
 if __name__ == "__main__":

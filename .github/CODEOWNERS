@@ -1,0 +1,7 @@
+# 파트별 담당자 GitHub 아이디를 적으면 PR 검토자로 자동 지정됩니다. (예: /web/ @아이디)
+# 아이디를 채운 뒤 맨 앞 '#' 를 지우세요.
+# /web/                     @front-담당
+# /peakguard/api/           @back-담당
+# /peakguard/collect/       @data-담당
+# /db/  /peakguard/database/  /peakguard/eda/   @db-담당
+# /peakguard/models/  /peakguard/evaluation/    @model-담당
