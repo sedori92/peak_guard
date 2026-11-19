@@ -11,6 +11,7 @@
     python run.py 8 -m "메시지"  # 깃허브 반영 (변경 파일 확인 → 커밋)
     python run.py 9            # 깃허브 푸시 (최신 내용 받아온 뒤 올리기)
     python run.py 10 --period week --date 2026-10-28   # 주간·월간 보고서
+    python run.py 10x --period month --date 2026-10-15 # 최고관리자 피크 보고서 (.xlsx, 일·주·월·연)
     python run.py 11 --file 새파일.csv                  # CSV → API 업로드
     python run.py eda          # 사용패턴·피크 분석 그래프
     python run.py calendar     # 공휴일 달력 CSV
@@ -32,6 +33,7 @@ STEPS = {
     "8": ("깃허브 반영 (커밋)", "docs/GITHUB_GUIDE.md"),
     "9": ("깃허브 푸시", "docs/GITHUB_GUIDE.md"),
     "10": ("보고서 (주간·월간) 텍스트", "peakguard/reports/periodic.py"),
+    "10x": ("최고관리자 피크 보고서 스프레드시트 (일·주·월·연)", "peakguard/reports/executive.py"),
     "11": ("CSV → API 업로드", "peakguard/api/upload.py, peakguard/tools/send_csv.py"),
     "eda": ("사용패턴·피크 분석", "peakguard/eda/patterns.py"),
     "calendar": ("공휴일 달력", "peakguard/collect/calendar_kr.py"),
@@ -88,6 +90,8 @@ def main() -> None:
         sh(["git", "push", "-u", "origin", branch])
     elif step == "10":
         from peakguard.reports.periodic import main as m; m()
+    elif step == "10x":
+        from peakguard.reports.executive import main as m; m()
     elif step == "11":
         from peakguard.tools.send_csv import main as m; m()
     elif step == "eda":

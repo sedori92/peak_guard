@@ -80,3 +80,32 @@ def test_upload_is_idempotent():
     assert j["inserted"] == 0 and j["duplicates"] == j["valid_rows"] > 0
     bad = client.post("/api/upload", files={"file": ("bad.csv", io.BytesIO(b"a,b\n1,2\n"), "text/csv")})
     assert bad.status_code == 400
+
+
+def test_report_peaks_and_xlsx(day):
+    """[10] 최고관리자 보고서: 일·주·월·연 피크 변동기록 + 기여도 Top10, 스프레드시트."""
+    for period, n_min in (("day", 12), ("week", 5), ("month", 15), ("year", 3)):
+        r = client.get("/api/report/peaks", params={"period": period, "date": day}).json()
+        assert len(r["records"]) >= n_min, period
+        assert len(r["top10"]) == 10 and r["top10"][0]["share_building"] > 0
+        assert r["summary"]["peak_kw"] == max(x["peak_kw"] for x in r["records"])
+    x = client.get("/api/report/xlsx", params={"period": "week", "date": day})
+    assert x.status_code == 200 and x.content[:2] == b"PK"
+    from openpyxl import load_workbook
+    wb = load_workbook(io.BytesIO(x.content))
+    assert wb.sheetnames == ["요약", "피크 변동기록", "기여도 Top10", "15분 기록"]
+
+
+def test_split_and_sum_models(day):
+    """팀원과 같은 기간 분할 + 채널합산 모델 + 오분류표."""
+    e = client.get("/api/eval").json()
+    assert e["splits"]["train"][1] < "2026-09-15" and e["splits"]["test"][0] == "2026-10-20 15:15"
+    names = {(r["model_name"], r["split"]) for r in e["peak_detection"]}
+    assert ("RF_SUM", "test") in names and ("RF_SUM", "val") in names
+    for r in e["peak_detection"]:
+        assert r["tp"] + r["fp"] + r["fn"] + r["tn"] == r["n"]
+    c = client.get("/api/sumcompare", params={"date": day}).json()
+    assert c["lines"]["RF_SUM"] and c["lines"]["RandomForest"] and len(c["rooms"]) >= 20
+    assert c["perf"]["Random Forest 채널합산"]["method"] == "채널합산"
+    d = client.get("/api/replay", params={"date": day, "model": "RF_SUM"}).json()
+    assert len(d["frames"][40]["proom"]) == 34

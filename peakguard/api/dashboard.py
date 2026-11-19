@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Query
 
-from ..config import DEFAULT_MODEL, DISPLAY, FLOORS, PEAK_PERCENTILE, PEAK_WINDOW_DAYS
+from ..config import DEFAULT_MODEL, DISPLAY, FLOORS, METHOD, PEAK_PERCENTILE, PEAK_WINDOW_DAYS, SUM_BASE
 from .common import WEEK_KO, check_model, has_table, info, num, q, room_key, to_local
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
@@ -34,11 +34,13 @@ def days():
 
 @router.get("/eval")
 def evaluation():
-    ev = q("SELECT * FROM st_eval ORDER BY scope, model_name, horizon_min")
-    pk = q("SELECT * FROM st_peak_eval")
+    ev = q("SELECT * FROM st_eval ORDER BY split, scope, model_name, horizon_min")
+    pk = q("SELECT * FROM st_peak_eval ORDER BY split, model_name")
     return {"metrics": ev.to_dict("records"), "peak_detection": pk.to_dict("records"),
             "test_start": info()["test_start"], "test_end": info()["test_end"],
-            "note": "MAPE 는 실제값이 전체 1kW·채널 0.1kW 미만인 칸 제외. 공통 표본(모든 모델이 예측한 칸)만 비교."}
+            "splits": info().get("splits"),
+            "note": "split=val 검증·test 시험. MAPE 는 실제값이 전체 1kW·채널 0.1kW 미만인 칸 제외. "
+                    "공통 표본(모든 모델이 예측한 칸)만 비교. bias=평균(예측−실제), miscls=오분류율."}
 
 
 @router.get("/forecast")
@@ -69,6 +71,10 @@ def replay(date: str = Query(..., description="YYYY-MM-DD"), model: str = "Light
               WHERE model_name=:m AND issued_at BETWEEN :a AND :b""", m=model, a=t0, b=t1)
     if fc.empty:
         raise HTTPException(404, f"{date} {model} 예측이 없습니다. (/api/days 참고)")
+    if model in SUM_BASE:      # 채널합산 모델: 호실 예측 = 원래 모델의 채널 예측
+        fc = pd.concat([fc, q("""SELECT series_id, issued_at, horizon_min, predicted_kw FROM st_forecast
+              WHERE model_name=:m AND series_id<>'TOTAL' AND issued_at BETWEEN :a AND :b""",
+                                m=SUM_BASE[model], a=t0, b=t1)])
     fc["issued_at"] = pd.to_datetime(fc.issued_at).dt.strftime("%H:%M")
     tot = fc[fc.series_id == "TOTAL"].pivot_table(index="issued_at", columns="horizon_min", values="predicted_kw")
     room_fc = fc[fc.series_id != "TOTAL"].set_index(["issued_at", "series_id", "horizon_min"]).predicted_kw
@@ -126,26 +132,41 @@ def replay(date: str = Query(..., description="YYYY-MM-DD"), model: str = "Light
     if not frames:
         raise HTTPException(404, f"{date} 은 실측 또는 예측이 비어 있어 재생할 수 없습니다.")
 
-    ev = q("SELECT * FROM st_eval WHERE scope='TOTAL'")
-    perf = {}
-    for name in inf["models"]:
-        e = ev[ev.model_name == name].set_index("horizon_min")
-        if 0 not in e.index:
-            continue
-        perf[DISPLAY.get(name, name)] = {"mae": num(e.loc[0, "mae"]), "rmse": num(e.loc[0, "rmse"]),
-                                         "mape": num(e.loc[0, "mape"]),
-                                         "by_h": [num(e.loc[h, "mae"]) for h in (15, 30, 45, 60)], "n": int(e.loc[0, "n"])}
-    pk = q("SELECT * FROM st_peak_eval")
-    peak = {DISPLAY.get(r.model_name, r.model_name): {"precision": num(r.precision), "recall": num(r.recall),
-            "f1": num(r.f1), "tp": int(r.tp), "fp": int(r.fp), "fn": int(r.fn)} for r in pk.itertuples()}
+    perf, peak = performance(inf["models"])
 
     d = pd.Timestamp(date)
     return {"day": f"{date}({WEEK_KO[d.dayofweek]})", "date": date, "model": DISPLAY.get(model, model), "model_id": model,
             "frames": frames, "imp": inf["importance"], "perf": perf, "peak": peak, "floors": FLOORS,
-            "test_start": inf["test_start"], "test_end": inf["test_end"],
+            "test_start": inf["test_start"], "test_end": inf["test_end"], "splits": inf.get("splits"),
             "thr_method": "직전 30일 전체 합산 15분 수요전력 P95"}
 
 
+
+
+def performance(models: list[str]) -> tuple[dict, dict]:
+    """건물 전체 성능(시험·검증)과 피크 오분류표. 키는 화면 표시 이름."""
+    ev = q("SELECT * FROM st_eval WHERE scope='TOTAL'")
+    te, va = ev[ev.split == "test"], ev[ev.split == "val"]
+    perf = {}
+    for name in models:
+        e = te[te.model_name == name].set_index("horizon_min")
+        if 0 not in e.index:
+            continue
+        v = va[(va.model_name == name) & (va.horizon_min == 0)]
+        perf[DISPLAY.get(name, name)] = {"id": name, "method": METHOD.get(name, ""),
+                                         "mae": num(e.loc[0, "mae"]), "rmse": num(e.loc[0, "rmse"]),
+                                         "mape": num(e.loc[0, "mape"]), "bias": num(e.loc[0, "bias"]),
+                                         "val_mae": num(v.mae.iloc[0]) if len(v) else None,
+                                         "by_h": [num(e.loc[h, "mae"]) for h in (15, 30, 45, 60)], "n": int(e.loc[0, "n"])}
+    pk = q("SELECT * FROM st_peak_eval")
+    peak = {}
+    for r in pk.itertuples():
+        d = peak.setdefault(DISPLAY.get(r.model_name, r.model_name), {})
+        d[r.split] = {"precision": num(r.precision), "recall": num(r.recall), "f1": num(r.f1), "tp": int(r.tp),
+                      "fp": int(r.fp), "fn": int(r.fn), "tn": int(r.tn), "n": int(r.n), "miscls": num(r.miscls, 4)}
+    for d in peak.values():              # 화면 기본값 = 시험기간
+        d.update(d.get("test", {}))
+    return perf, peak
 
 
 def _channel_id(channel: str) -> str:
@@ -162,6 +183,7 @@ def channel_line(date: str = Query(..., description="YYYY-MM-DD"), channel: str 
                  model: str = DEFAULT_MODEL):
     """채널별 피크 선: 그날 채널 실측(15분), 발행 시각별 15분×4 예측, 채널 피크 기준(직전 30일 P95)."""
     check_model(model)
+    model_fc = SUM_BASE.get(model, model)        # 채널합산 모델의 채널 예측 = 원래 모델의 채널 예측
     cid = _channel_id(channel)
     ch = q("SELECT channel_id, meter_id, is_active, room_name FROM channel WHERE channel_id=:c", c=cid)
     if ch.empty:
@@ -179,7 +201,7 @@ def channel_line(date: str = Query(..., description="YYYY-MM-DD"), channel: str 
     actual = [{"t": r.t, "y": num(r.demand_kw, 3)} for r in m.sort_values("t").itertuples()]
 
     fc = q("""SELECT issued_at, horizon_min, predicted_kw FROM st_forecast
-              WHERE model_name=:m AND series_id=:c AND issued_at BETWEEN :a AND :b""", m=model, c=cid, a=t0, b=t1)
+              WHERE model_name=:m AND series_id=:c AND issued_at BETWEEN :a AND :b""", m=model_fc, c=cid, a=t0, b=t1)
     fc["t"] = to_local(fc.issued_at).dt.strftime("%H:%M")
     pred = {t: [num(v, 3) for v in g.sort_values("horizon_min").predicted_kw] for t, g in fc.groupby("t")}
     note = None

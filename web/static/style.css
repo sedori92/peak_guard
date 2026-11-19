@@ -122,3 +122,58 @@ nav.tabs a[aria-current="page"]{background:linear-gradient(140deg,#FF8A1F,#E3300
 .chctl .note{margin:0}
 .tile{cursor:pointer}
 #chchart{height:260px}
+
+/* ---- 추가 화면 요소 (Top5 추이·오분류표·보고서·채널합산 보조화면) ---- */
+:root{--cyan:#4CC9F0}
+button.logo{padding:0;cursor:pointer;font:inherit}
+button.logo:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+nav.tabs a .aux{font-style:normal;font-size:10.5px;padding:1px 6px;margin-left:3px;border-radius:99px;border:1px solid currentColor;opacity:.8}
+.card h3{font-size:13px;margin:0 0 6px;font-weight:600;display:flex;gap:8px;align-items:baseline}
+.card h3 .sub{font-weight:400;color:var(--ink2);font-size:12px}
+#t5chart,#cmpchart{height:280px}
+.repctl{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.repctl label{font-size:13px;color:var(--ink2)}
+.repctl input[type=date]{font:inherit;font-size:13px;padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{font:inherit;font-size:13px;border:0;background:transparent;color:var(--ink2);padding:6px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:linear-gradient(140deg,#FF8A1F,#E33001);color:#fff}
+.btn{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:7px 14px;border-radius:9px;background:var(--amber);color:#fff;text-decoration:none}
+.btn:not([href]){opacity:.45;cursor:not-allowed}
+.repgrid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:16px}
+.tscroll{max-height:300px;overflow:auto}
+.tscroll table.perf th{position:sticky;top:0;background:var(--panel)}
+table.perf tr.over td{color:var(--bad);font-weight:600}
+table.perf tr.sum td{background:color-mix(in srgb,var(--cyan) 10%,transparent)}
+table.perf tr.sum td:first-child{border-left:3px solid var(--cyan)}
+.cm{display:grid;grid-template-columns:76px 1fr 1fr;gap:6px;align-items:stretch}
+.cm .h{font-size:12px;color:var(--ink2);display:grid;place-items:center;text-align:center}
+.cm .c{border-radius:10px;padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:2px;border:1px solid var(--line)}
+.cm .c b{font-family:var(--f-num);font-size:24px}
+.cm .c span{font-size:12px;color:var(--ink2)}
+.cm .c.good{background:var(--oksoft)} .cm .c.good b{color:var(--ok)}
+.cm .c.bad{background:var(--badsoft)} .cm .c.bad b{color:var(--bad)}
+.cm .c.warn{background:var(--warnsoft)} .cm .c.warn b{color:var(--warn)}
+.cm .cmsum{grid-column:1/-1;font-size:13px;margin-top:4px} .cm .cmsum b{font-family:var(--f-num);color:var(--amber)}
+.auxnote{border-left:4px solid var(--cyan)!important}
+.auxnote p{margin:0;font-size:13px;line-height:1.6;color:var(--ink2)} .auxnote b{color:var(--ink)}
+.ctile{min-height:72px}
+.ctile .e{font-family:var(--f-num);font-size:11px;color:var(--ink2)} .ctile .e b{font-weight:400} .ctile .e b.win{font-weight:700;color:var(--ink)}
+@media (max-width:900px){.repgrid{grid-template-columns:1fr}}
+
+/* ---- 밝은 화면 (로고를 누르면 전환) ---- */
+:root[data-theme="light"]{
+  --bg:#F6F3F0; --panel:#FFFFFF; --ink:#1E1611; --ink2:#5E4C3E; --muted:#8C7969; --line:#E7DACD;
+  --soft:#FFE9D8; --badsoft:#FDE4DF; --oksoft:#DDF4E6; --warnsoft:#FFF2D2; --ok:#1F9D55; --warn:#B7791F;
+  --grid:#EFE7DF; --pred:#D97706; --amber:#E8590C; --yellow:#F59E0B; --cyan:#0E8FB8;
+  --glass:rgba(255,255,255,.94); --glow:rgba(232,89,12,.25); color-scheme:light}
+:root[data-theme="light"] body{background:#F6F3F0}
+:root[data-theme="light"] #bgnet{display:none}
+:root[data-theme="light"] .card,:root[data-theme="light"] .kpi,:root[data-theme="light"] .status,:root[data-theme="light"] .floor,:root[data-theme="light"] nav.tabs{
+  backdrop-filter:none;-webkit-backdrop-filter:none;border-color:var(--line)!important;box-shadow:0 1px 2px rgba(30,22,17,.06),0 6px 18px rgba(30,22,17,.05)}
+:root[data-theme="light"] .status.risk{background:linear-gradient(90deg,var(--badsoft),var(--panel) 60%)!important}
+:root[data-theme="light"] .chart polyline,:root[data-theme="light"] .wf rect,:root[data-theme="light"] #imp rect,
+:root[data-theme="light"] .chart circle,:root[data-theme="light"] .room .bar i,:root[data-theme="light"] .stack i{filter:none;box-shadow:none}
+:root[data-theme="light"] .kpi b,:root[data-theme="light"] .thr b{text-shadow:none}
+:root[data-theme="light"] .ctrl button,:root[data-theme="light"] .ctrl select{background:var(--panel);border-color:var(--line)}
+:root[data-theme="light"] .tile{border-color:var(--line)}
+:root[data-theme="light"] .live{background:var(--badsoft)}

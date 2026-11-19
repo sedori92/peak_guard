@@ -14,12 +14,13 @@
 <script src="static/bg.js"></script>
 <div class="wrap">
   <header class="top">
-    <div class="brand"><span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V6z"/><path d="m13 7-3 5h4l-3 5"/></svg></span>피크가드</div>
+    <div class="brand"><button class="logo" id="theme" type="button" aria-pressed="false" title="눌러서 밝은 화면 / 어두운 화면 전환" aria-label="밝은 화면과 어두운 화면 전환"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V6z"/><path d="m13 7-3 5h4l-3 5"/></svg></button>피크가드</div>
     <span class="site">광주테크노파크 생활로봇지원센터 · 96개 계측채널</span>
     <nav class="tabs" aria-label="화면 선택">
       <a href="#overview" data-s="overview">관제 현황</a>
       <a href="#rooms" data-s="rooms">호실·채널</a>
       <a href="#factors" data-s="factors">영향요인</a>
+      <a href="#sumcmp" data-s="sumcmp" title="보조화면: 채널합산(Random Forest) 성능 비교와 호실 예측">채널합산 비교 <em class="aux">보조</em></a>
     </nav>
     <div class="clock"><span class="live"><i></i>재생 중</span><span id="clk">—</span></div>
     <div class="ctrl"><select id="dsel" aria-label="재생 날짜"></select><select id="msel" aria-label="예측 모델"></select><button id="play" type="button">일시정지</button><button id="spd" type="button">속도 ×1</button></div>
@@ -53,6 +54,22 @@
       </div>
     </div>
     <div class="floors" id="floors"></div>
+    <div class="card" id="rep">
+      <h2>최고관리자 보고서 <span class="sub">전체 피크 변동기록 + 피크 시각 기여도 Top 10 · 스프레드시트(.xlsx)로 내려받기</span></h2>
+      <div class="repctl">
+        <div class="seg" role="group" aria-label="보고 기간">
+          <button type="button" data-p="day">일간</button><button type="button" data-p="week">주간</button><button type="button" data-p="month" aria-pressed="true">월간</button><button type="button" data-p="year">연간</button>
+        </div>
+        <label for="repdate">기준일</label><input type="date" id="repdate">
+        <a id="repdl" class="btn" href="#" download>스프레드시트 내려받기</a>
+        <span class="note" id="repinfo">—</span>
+      </div>
+      <div class="repgrid">
+        <div><h3>피크 변동기록 <span class="sub" id="repunit">—</span></h3><div class="tscroll"><table class="perf" id="reprec"></table></div></div>
+        <div><h3>기여도 Top 10 <span class="sub" id="reppk">—</span></h3><div class="tscroll"><table class="perf" id="reptop"></table></div></div>
+      </div>
+      <p class="note">건물 합계 = 96개 계측채널 단순합(96개 모두 수신된 15분 칸). 기여도 = 피크 시각의 채널 사용 비중으로, 인과 영향·요금 배분율과는 다릅니다 (기업 3차 멘토링 답변 ④).</p>
+    </div>
   </section>
 
   <!-- 2. 호실 기여도 -->
@@ -77,6 +94,12 @@
       <div class="legend"><span><i class="sw" style="background:var(--ink)"></i>채널 실측</span><span><i class="sw" style="background:var(--pred)"></i>예측 (15분 × 4)</span><span><i class="sw" style="background:var(--bad)"></i>채널 피크 기준 (직전 30일 P95)</span></div>
       <svg class="chart" id="chchart" viewBox="0 0 900 260" preserveAspectRatio="none" role="img" aria-label="채널 수요전력과 예측"></svg>
     </div>
+    <div class="card">
+      <h2>점검 우선 Top 5 채널 추이 <span class="sub" id="t5t">—</span></h2>
+      <div class="legend" id="t5leg"></div>
+      <svg class="chart" id="t5chart" viewBox="0 0 900 280" preserveAspectRatio="none" role="img" aria-label="Top 5 채널 수요전력 추이"></svg>
+      <p class="note">실선 = 오늘 0시부터 지금까지 실측, 점선 끝 점 = 예상 피크 시각의 채널 예측값. Top 5는 예상 피크 시각 기준으로 15분마다 다시 고릅니다.</p>
+    </div>
   </section>
 
   <!-- 3. 영향요인 -->
@@ -92,9 +115,42 @@
         <svg id="imp" viewBox="0 0 420 330" style="width:100%;height:330px" role="img" aria-label="전체 영향요인"></svg>
       </div>
     </div>
+    <div class="grid2">
+      <div class="card">
+        <h2>모델 성능 <span class="sub">시험 <span class="js-test">—</span> · 건물 전체 합산 · 다음 1시간 4개 시점 평균 · 공통 표본</span></h2>
+        <div style="overflow-x:auto"><table class="perf" id="perf"></table></div>
+      </div>
+      <div class="card">
+        <h2>피크 경보 오분류율 <span class="sub">시험기간 · 발행마다 "다음 1시간 안에 기준 이상?" 판정</span></h2>
+        <div class="chctl"><label for="cmsel">모델</label><select id="cmsel" aria-label="오분류표 모델"></select></div>
+        <div class="cm" id="cm"></div>
+        <div class="tscroll"><table class="perf" id="cmall"></table></div>
+        <p class="note">오분류율 = (헛경보 + 놓침) ÷ 전체 발행. 피크 위험은 드물어서 오분류율이 낮아도 놓침이 많을 수 있으니 재현율(실제 위험 중 맞힌 비율)을 함께 보세요.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. 보조: 채널합산(Random Forest) 비교 -->
+  <section class="scr" id="s-sumcmp" hidden>
+    <div class="card auxnote">
+      <h2>보조 화면 · 채널합산 방식 비교 <span class="sub" id="cmpsplit">—</span></h2>
+      <p>기업 권장 방식은 <b>건물 전체(96개 채널 단순합) 수요전력을 직접 예측</b>하는 것입니다 (추가 답변 4번, 3차 멘토링 답변 ④). 이 화면은 팀 실험 방식인 <b>채널 61개를 각각 예측해 같은 시각끼리 더한 값(채널합산)</b>을 같은 학습·검증·시험 기간, 같은 표본으로 비교하는 보조 자료입니다.</p>
+    </div>
     <div class="card">
-      <h2>모델 성능 <span class="sub">평가 <span class="js-test">—</span> · 건물 전체 합산 · 다음 1시간 4개 시점 평균 · 공통 표본</span></h2>
-      <div style="overflow-x:auto"><table class="perf" id="perf"></table></div>
+      <h2>성능 비교 <span class="sub">건물 전체 · 다음 1시간 4개 시점 · 공통 표본 · 검증 MAE로 고르고 시험으로 확인</span></h2>
+      <div style="overflow-x:auto"><table class="perf" id="cmpperf"></table></div>
+      <p class="note">편향 = 평균(예측 − 실제). 마이너스가 크면 피크를 낮게 예측해 놓치기 쉽습니다. 피크 칸: 맞힘 / 놓침 / 헛경보.</p>
+    </div>
+    <div class="card">
+      <h2>건물 합계: 실측과 1시간 뒤 예측 <span class="sub" id="cmpt">—</span></h2>
+      <div class="chctl"><label for="cmpm">비교 모델</label><select id="cmpm" aria-label="비교 모델"><option value="rf">Random Forest</option><option value="lgb">LightGBM</option></select><label for="cmph">선행시간</label><select id="cmph" aria-label="선행시간"><option value="0">15분</option><option value="1">30분</option><option value="2">45분</option><option value="3" selected>60분</option></select></div>
+      <div class="legend"><span><i class="sw" style="background:var(--ink)"></i>실측 (96개 채널 단순합)</span><span><i class="sw" style="background:var(--amber)"></i>건물 직접 예측</span><span><i class="sw" style="background:var(--cyan)"></i>채널합산 예측</span><span><i class="sw" style="background:var(--bad)"></i>피크 기준</span></div>
+      <svg class="chart" id="cmpchart" viewBox="0 0 900 280" preserveAspectRatio="none" role="img" aria-label="건물 직접과 채널합산 예측 비교"></svg>
+    </div>
+    <div class="card">
+      <h2>호실 화면 · Random Forest 채널 예측 <span class="sub" id="cmprt">—</span></h2>
+      <div class="plan" id="cmpplan"></div>
+      <p class="note">칸 위 = 지금 실측 kW, 굵은 숫자 = 다음 1시간 최대 예측 kW (Random Forest 채널 모델), 아래 = 시험기간 채널 MAE (RF / LightGBM, 작은 쪽 강조). 회색 = 전 기간 0kW 채널.</p>
     </div>
   </section>
 

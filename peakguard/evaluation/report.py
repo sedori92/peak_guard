@@ -32,7 +32,7 @@ plt.rcParams["font.family"] = ["Malgun Gothic", "AppleGothic", "NanumGothic", "N
                                "Noto Sans CJK JP", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
 COLORS = {"전일 동일시각": "#9e9e9e", "최근값 유지": "#607d8b", "LightGBM": "#ff7a1a",
-          "RandomForest": "#2e7d32", "BiLSTM": "#5c6bc0"}
+          "RandomForest": "#2e7d32", "BiLSTM": "#5c6bc0", "LGBM_SUM": "#ffb74d", "RF_SUM": "#81c784"}
 OUT = REPORT_DIR / "eval"
 
 
@@ -42,18 +42,18 @@ def _q(engine, sql, **p) -> pd.DataFrame:
 
 
 def tables(engine) -> dict[str, pd.DataFrame]:
-    ev = _q(engine, "SELECT * FROM st_eval")
+    ev = _q(engine, "SELECT * FROM st_eval WHERE split='test'")
     out = {}
     for scope in ("TOTAL", "CHANNEL"):
         e = ev[ev.scope == scope]
-        t = e[e.horizon_min == 0].set_index("model_name")[["mae", "rmse", "mape", "n"]]
+        t = e[e.horizon_min == 0].set_index("model_name")[["mae", "rmse", "bias", "mape", "n"]]
         for h in (15, 30, 45, 60):
             t[f"MAE_{h}분"] = e[e.horizon_min == h].set_index("model_name").mae
         base = t.loc["전일 동일시각", "mae"] if "전일 동일시각" in t.index else np.nan
         t["전일기준대비개선%"] = (base - t.mae) / base * 100
         t.index = [DISPLAY.get(i, i) for i in t.index]
         out[scope] = t.round(3)
-    pk = _q(engine, "SELECT * FROM st_peak_eval").set_index("model_name")
+    pk = _q(engine, "SELECT * FROM st_peak_eval WHERE split='test'").set_index("model_name")
     pk.index = [DISPLAY.get(i, i) for i in pk.index]
     out["PEAK"] = pk.round(3)
     return out
@@ -72,7 +72,7 @@ def run() -> None:
     print("■ 채널 61개 (kW)\n" + t["CHANNEL"].to_string() + "\n")
     print("■ 피크 사전 감지 (다음 1시간 중 기준 초과)\n" + t["PEAK"][["precision", "recall", "f1", "tp", "fp", "fn"]].to_string() + "\n")
 
-    ev = _q(engine, "SELECT * FROM st_eval WHERE scope='TOTAL' AND horizon_min>0")
+    ev = _q(engine, "SELECT * FROM st_eval WHERE scope='TOTAL' AND horizon_min>0 AND split='test'")
     models = info["models"]
     # 1) 선행시간별 MAE
     fig, ax = plt.subplots(figsize=(9, 4.5))

@@ -29,16 +29,28 @@ st_eval = Table(      # 성능 지표 (horizon_min=0 은 4구간 평균)
     Column("scope", String(10), nullable=False),
     Column("horizon_min", Integer, nullable=False),
     Column("mae", Float), Column("rmse", Float), Column("mape", Float),
-    Column("n", Integer), Column("n_mape", Integer),
-    Column("test_start", String(10)), Column("test_end", String(10)),
-    PrimaryKeyConstraint("model_name", "scope", "horizon_min"),
+    Column("n", Integer), Column("n_mape", Integer), Column("bias", Float),   # bias = 평균(예측−실제)
+    Column("split", String(5), nullable=False, server_default="test"),           # val(검증) / test(시험)
+    Column("test_start", String(16)), Column("test_end", String(16)),
+    PrimaryKeyConstraint("model_name", "scope", "horizon_min", "split"),
 )
 
-st_peak_eval = Table(  # 피크 사전 감지 성능
+st_peak_eval = Table(  # 피크 사전 감지 성능 (오분류표: 맞힘 tp·헛경보 fp·놓침 fn·정상 tn)
     "st_peak_eval", meta,
-    Column("model_name", String(20), primary_key=True),
+    Column("model_name", String(20), nullable=False),
+    Column("split", String(5), nullable=False, server_default="test"),
     Column("precision", Float), Column("recall", Float), Column("f1", Float),
-    Column("tp", Integer), Column("fp", Integer), Column("fn", Integer), Column("n", Integer),
+    Column("tp", Integer), Column("fp", Integer), Column("fn", Integer), Column("tn", Integer), Column("n", Integer),
+    Column("miscls", Float),                                   # 오분류율 = (헛경보+놓침)/전체
+    PrimaryKeyConstraint("model_name", "split"),
+)
+
+st_channel_eval = Table(  # 채널(시계열)별 시험 성능 — 보조화면 '채널합산 비교'의 호실별 오차
+    "st_channel_eval", meta,
+    Column("model_name", String(20), nullable=False),
+    Column("series_id", String(16), nullable=False),
+    Column("mae", Float), Column("bias", Float), Column("n", Integer),
+    PrimaryKeyConstraint("model_name", "series_id"),
 )
 
 st_explain = Table(   # LightGBM 전체 합산 1시간 뒤 예측의 SHAP 기여도(kW)

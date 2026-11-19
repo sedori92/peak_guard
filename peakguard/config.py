@@ -37,7 +37,11 @@ FLOORS = {"M002": 1, "M004": 2, "M006": 3, "M008": 4}      # 호실 계량기 �
 COMMON_METERS = {"M001": 1, "M003": 2, "M005": 3, "M007": 4}
 
 # ---- 예측·평가 ------------------------------------------------------------
-TEST_START = "2026-09-28"         # 이 날부터 평가(이전은 학습)
+# 기간 나누기: 팀원(STEP4 시계열 분할)과 같은 기간
+#   학습 ~9/14 · 검증 9/15~10/6 · (10/6 15시~10/20 15시 통신 교체로 수집 중단) · 시험 10/20 15:15~11/2 16:30
+TRAIN_END = "2026-09-15 00:00"    # 이 시각 전까지의 정답만 학습에 사용
+VAL_START, VAL_END = "2026-09-15 00:00", "2026-10-06 23:45"
+TEST_START, TEST_END = "2026-10-20 15:15", "2026-11-02 16:30"   # 발행 시각 기준 (팀원 시험 1,155 발행과 같은 범위)
 SEED = 42
 PEAK_WINDOW_DAYS = 30             # 피크 기준 = 직전 30일
 PEAK_PERCENTILE = 95              #           의 95백분위수(P95)
@@ -45,7 +49,12 @@ MAPE_MIN_TOTAL_KW = 1.0           # MAPE 계산 제외 기준 (저사용량)
 MAPE_MIN_CHANNEL_KW = 0.1
 
 BASE_DAY, BASE_LAST = "전일 동일시각", "최근값 유지"
-MODELS = [BASE_DAY, BASE_LAST, "LightGBM", "RandomForest", "BiLSTM"]
+MODELS = [BASE_DAY, BASE_LAST, "LightGBM", "RandomForest", "BiLSTM", "LGBM_SUM", "RF_SUM"]
 DISPLAY = {BASE_DAY: BASE_DAY, BASE_LAST: BASE_LAST, "LightGBM": "LightGBM",
-           "RandomForest": "Random Forest", "BiLSTM": "Bi-LSTM"}
+           "RandomForest": "Random Forest", "BiLSTM": "Bi-LSTM",
+           "LGBM_SUM": "LightGBM 채널합산", "RF_SUM": "Random Forest 채널합산"}
+# 채널합산 모델: 건물 전체 = 해당 모델의 채널(61개 활성) 예측을 같은 시각끼리 더한 값 (보조 비교용)
+SUM_BASE = {"LGBM_SUM": "LightGBM", "RF_SUM": "RandomForest"}
+METHOD = {BASE_DAY: "기준", BASE_LAST: "비교", "LightGBM": "건물 직접", "RandomForest": "건물 직접",
+          "BiLSTM": "건물 직접", "LGBM_SUM": "채널합산", "RF_SUM": "채널합산"}
 DEFAULT_MODEL = "LightGBM"

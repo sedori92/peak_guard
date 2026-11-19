@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS weather_15m (
 
 -- 9) 15분 × 4 예측값 : series_id = 'TOTAL'(건물 합산) 또는 channel_id(호실 채널)
 CREATE TABLE IF NOT EXISTS st_forecast (
-    model_name    VARCHAR(20) NOT NULL,           -- 전일 동일시각 / 최근값 유지 / LightGBM / RandomForest / BiLSTM
+    model_name    VARCHAR(20) NOT NULL,           -- 전일 동일시각 / 최근값 유지 / LightGBM / RandomForest / BiLSTM / LGBM_SUM / RF_SUM(채널합산)
     series_id     VARCHAR(16) NOT NULL,
     issued_at     TIMESTAMP   NOT NULL,           -- 발행 시각 (이 시각까지의 실측만 사용)
     horizon_min   INTEGER     NOT NULL CHECK (horizon_min IN (15,30,45,60)),
@@ -111,14 +111,26 @@ CREATE TABLE IF NOT EXISTS st_forecast (
 CREATE TABLE IF NOT EXISTS st_eval (
     model_name VARCHAR(20) NOT NULL, scope VARCHAR(10) NOT NULL CHECK (scope IN ('TOTAL','CHANNEL')),
     horizon_min INTEGER NOT NULL, mae REAL, rmse REAL, mape REAL, n INTEGER, n_mape INTEGER,
-    test_start VARCHAR(10), test_end VARCHAR(10),
-    PRIMARY KEY (model_name, scope, horizon_min)
+    bias REAL,                                       -- 평균(예측 − 실제): 마이너스면 낮게 예측
+    split VARCHAR(5) NOT NULL DEFAULT 'test' CHECK (split IN ('val','test')),   -- 검증 / 시험
+    test_start VARCHAR(16), test_end VARCHAR(16),
+    PRIMARY KEY (model_name, scope, horizon_min, split)
 );
 
 -- 11) 피크 사전 감지 성능 (다음 1시간 중 하나라도 피크 기준 이상)
+--     오분류표: tp 맞힘 · fp 헛경보 · fn 놓침 · tn 정상, miscls 오분류율 = (fp+fn)/n
 CREATE TABLE IF NOT EXISTS st_peak_eval (
-    model_name VARCHAR(20) PRIMARY KEY, precision REAL, recall REAL, f1 REAL,
-    tp INTEGER, fp INTEGER, fn INTEGER, n INTEGER
+    model_name VARCHAR(20) NOT NULL, split VARCHAR(5) NOT NULL DEFAULT 'test',
+    precision REAL, recall REAL, f1 REAL,
+    tp INTEGER, fp INTEGER, fn INTEGER, tn INTEGER, n INTEGER, miscls REAL,
+    PRIMARY KEY (model_name, split)
+);
+
+-- 11-2) 채널별 시험 성능 (보조화면 '채널합산 비교'의 호실별 오차)
+CREATE TABLE IF NOT EXISTS st_channel_eval (
+    model_name VARCHAR(20) NOT NULL, series_id VARCHAR(16) NOT NULL,
+    mae REAL, bias REAL, n INTEGER,
+    PRIMARY KEY (model_name, series_id)
 );
 
 -- 12) 예측 설명 : LightGBM 건물 합산 1시간 뒤 예측의 SHAP 기여도(kW)

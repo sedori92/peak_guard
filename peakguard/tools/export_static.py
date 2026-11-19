@@ -22,12 +22,23 @@ def export(date: str, model: str = DEFAULT_MODEL, out: str | None = None) -> Pat
             channels[room_key(cid)] = dashboard.channel_line(date, room_key(cid), model)
         except Exception:      # 데이터 없는 채널은 건너뜀
             pass
+    from ..api.compare import sum_compare
+    from ..reports.executive import build
+    try:
+        sumcmp = sum_compare(date)
+    except Exception:
+        sumcmp = None
+    report = {p: build(p, date) for p in ("day", "week", "month", "year")}
+    for r in report.values():
+        r.pop("series", None)
     html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
     css = (WEB_DIR / "static" / "style.css").read_text(encoding="utf-8")
     bg = (WEB_DIR / "static" / "bg.js").read_text(encoding="utf-8")
     app = (WEB_DIR / "static" / "app.js").read_text(encoding="utf-8")
     inject = ("<script>window.PEAKGUARD_DATA = " + json.dumps(data, ensure_ascii=False) + ";\n"
-              "window.PEAKGUARD_CHANNELS = " + json.dumps(channels, ensure_ascii=False) + ";</script>")
+              "window.PEAKGUARD_CHANNELS = " + json.dumps(channels, ensure_ascii=False) + ";\n"
+              "window.PEAKGUARD_SUMCMP = " + json.dumps(sumcmp, ensure_ascii=False) + ";\n"
+              "window.PEAKGUARD_REPORT = " + json.dumps(report, ensure_ascii=False) + ";</script>")
     html = html.replace('<link rel="stylesheet" href="static/style.css">', "<style>\n" + css + "</style>")
     html = html.replace('<script src="static/bg.js"></script>', inject + "\n<script>\n" + bg + "</script>")
     html = html.replace('<script src="static/app.js"></script>', "<script>\n" + app + "</script>")

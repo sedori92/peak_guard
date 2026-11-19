@@ -10,7 +10,7 @@
 | 파트 | 하는 일 | 수정할 폴더·파일 | 브랜치 이름 예시 | 담당자 |
 |---|---|---|---|---|
 | **Front-end** | 건물·호실별 대시보드 화면 설계·구현 | `web/index.html` (화면 배치)<br>`web/static/app.js` (동작·그래프)<br>`web/static/style.css` (디자인)<br>`peakguard/tools/export_static.py` (시연용 HTML) | `front/채널그래프` | |
-| **Back-end** | Data Modeling, FastAPI 조회 API, CSV 업로드 | `peakguard/api/` (`dashboard.py` 조회, `upload.py` 업로드, `app.py` 서버)<br>`peakguard/models/grid.py` (DB → 시계열 격자)<br>`peakguard/reports/periodic.py` (보고서) | `back/api-알림` | |
+| **Back-end** | Data Modeling, FastAPI 조회 API, CSV 업로드 | `peakguard/api/` (`dashboard.py` 조회, `compare.py` 채널합산 비교, `upload.py` 업로드, `app.py` 서버)<br>`peakguard/models/grid.py` (DB → 시계열 격자)<br>`peakguard/reports/periodic.py` (보고서), `peakguard/reports/executive.py` (최고관리자 스프레드시트) | `back/api-알림` | |
 | **데이터 수집·전처리** | 기상·공휴일·고객 텍스트 수집, 전력 CSV 정제 | `peakguard/collect/`<br>· `power_csv.py` 전력 정제 규칙<br>· `weather.py` 기상청 ASOS<br>· `calendar_kr.py` 공휴일<br>· `reviews.py` 앱 리뷰 크롤링 | `data/기상추가` | |
 | **DB 설계·구축, EDA** | 테이블 설계·적재, 사용패턴·피크 분석 | `db/schema.sql` (테이블 정의서)<br>`peakguard/database/` (연결·적재)<br>`peakguard/eda/patterns.py` (분석 그래프) | `db/인덱스` | |
 | **모델 영향요인·성능평가** | 예측모델, 피크 기여도·영향요인, 성능평가 | `peakguard/models/` (`features.py` 특징, `lightgbm_model.py`, `random_forest_model.py`, `bilstm_model.py`, `baseline.py`, `train.py`)<br>`peakguard/evaluation/` (`metrics.py` 지표, `report.py` 표·그래프) | `model/기온특징` | |
@@ -29,6 +29,7 @@
 | 8 | 깃허브 반영 | `run.py 8 -m "메시지"` (커밋) | 로컬 커밋 |
 | 9 | 깃허브 푸시 | `run.py 9` (받아오기 → 올리기) | GitHub 반영 |
 | 10 | 보고서 (주간·월간) | `peakguard/reports/periodic.py`, API `/api/report` | `reports/report_*.txt` |
+| 10x | 최고관리자 피크 보고서 (일·주·월·연, 기여도 Top10) | `peakguard/reports/executive.py`, API `/api/report/peaks`·`/api/report/xlsx` | `reports/피크보고서_*.xlsx` |
 | 11 | CSV → API 업로드 | `peakguard/api/upload.py`, `peakguard/tools/send_csv.py` | DB에 새 측정값 추가 |
 | eda | 사용패턴·피크 분석 | `peakguard/eda/patterns.py` | `reports/eda/` |
 
