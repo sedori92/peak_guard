@@ -10,7 +10,7 @@
   winter     12~2월             가장 최근 겨울(12·1·2월) — 기준일이 그 안이면 기준일 전날까지
   (한전 요금적용전력이 여름·겨울·당월 최대수요전력을 보는 것과 맞추려고 여름·겨울을 따로 둠)
 
-자료가 7일치(당월은 1일치)보다 적으면 그 기준은 '자료 부족'으로 표시하고 고를 수 없게 합니다.
+자료가 7일치보다 적으면(예: 11월 1~2일의 '당월') 그 기준은 '자료 부족'으로 표시하고 고를 수 없게 합니다.
 """
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ def options(total: pd.Series, day) -> dict:
     for k in KEYS:
         a, b = _range(k, day)
         w = total[(total.index >= a) & (total.index < b)].dropna()
-        need = DAY if k == "this_month" else 7 * DAY
+        need = 7 * DAY                                  # 모든 기준: 7일치 이상 있어야 계산 (주말만 있는 기간 방지)
         ok = len(w) >= need
         last = b - pd.Timedelta(days=1)
         out[k] = {"key": k, "name": NAMES[k], "kw": round(float(np.percentile(w, PEAK_PERCENTILE)), 2) if ok else None,

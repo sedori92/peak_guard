@@ -54,10 +54,12 @@
     });
     if (!S.thrOpts[S.thrKey] || S.thrOpts[S.thrKey].kw == null) { S.thrKey = 'recent30'; sel.value = 'recent30'; }
   };
-  $('#thrsel').addEventListener('change', () => {
-    S.thrKey = $('#thrsel').value; try { localStorage.setItem(THR_KEY, S.thrKey); } catch (e) { /* 저장 불가 */ }
+  // 기준 바꾸기 (첫 화면·세 번째 화면 어느 쪽에서 바꿔도 같이 바뀜)
+  S.setThr = (key) => {
+    S.thrKey = key; $('#thrsel').value = key; try { localStorage.setItem(THR_KEY, key); } catch (e) { /* 저장 불가 */ }
     PG.resetAlerts && PG.resetAlerts(); S.render();
-  });
+  };
+  $('#thrsel').addEventListener('change', () => S.setThr($('#thrsel').value));
   // 그 칸의 피크 기준: 고른 기준점 값 (최근 30일이면 칸마다 저장된 값)
   S.thrOf = (f) => (S.thrKey === 'recent30' || !S.thrOpts[S.thrKey] ? f.thr0 : S.thrOpts[S.thrKey].kw);
   const applyThr = (f) => { if (f.thr0 === undefined) f.thr0 = f.thr; f.thr = S.thrOf(f); return f; };
@@ -107,20 +109,24 @@
   }
 
   // ---------- 상단 변동선: 실측 + 예측 + 피크 기준선 ----------
-  // 두 그래프 공통 가로축: 0시~24시, 같은 여백 → 위·아래 '지금' 선이 같은 자리
-  const AX = { L: 44, R: 78, T: 12, B: 26 };
-  S.xAxis = (svg, H) => {
-    const W = PG.fitWidth(svg, H), x = (m) => AX.L + m / 1440 * (W - AX.L - AX.R);
-    for (let h = 0; h <= 24; h += 1) {
-      if (h % 3 === 0) el('line', { x1: x(h * 60), x2: x(h * 60), y1: AX.T, y2: H - AX.B, stroke: css('--grid'), 'stroke-dasharray': '2 4' }, svg);
-      if (h % 3 === 0) { const t = el('text', { x: x(h * 60), y: H - 6, 'text-anchor': 'middle', 'font-size': 11, fill: css('--muted') }, svg); t.textContent = h + '시'; }
+  // 두 그래프 공통 가로축: 지금 기준 '앞 2시간(왼쪽 2/3) + 다음 1시간 예측(오른쪽 1/3)'
+  //   시간이 지나면 화면이 왼쪽으로 밀려남. 같은 여백이라 위·아래 '지금' 선이 같은 자리
+  const AX = { L: 44, R: 78, T: 12, B: 26 }, PAST = 120, NEXT = 60;
+  S.xAxis = (svg, H, now) => {
+    const X0 = now - PAST, X1 = now + NEXT;
+    const W = PG.fitWidth(svg, H), x = (m) => AX.L + (m - X0) / (X1 - X0) * (W - AX.L - AX.R);
+    el('rect', { x: x(now), y: AX.T, width: x(X1) - x(now), height: H - AX.T - AX.B, fill: css('--pred'), opacity: 0.05 }, svg);   // 예측 구간
+    for (let m = Math.ceil(X0 / 30) * 30; m <= X1; m += 30) {
+      el('line', { x1: x(m), x2: x(m), y1: AX.T, y2: H - AX.B, stroke: css('--grid'), 'stroke-dasharray': '2 4' }, svg);
+      const t = el('text', { x: x(m), y: H - 6, 'text-anchor': 'middle', 'font-size': 11, fill: css('--muted') }, svg);
+      t.textContent = String(Math.floor(((m % 1440) + 1440) % 1440 / 60)).padStart(2, '0') + ':' + String(((m % 60) + 60) % 60).padStart(2, '0');
     }
-    return { W, x };
+    return { W, x, X0, X1 };
   };
   function drawChart(f) {
     const svg = $('#chart'); svg.replaceChildren();
-    const H = 300, ml = AX.L, mt = AX.T, mb = AX.B, X0 = 0;
-    const { W, x: xs } = S.xAxis(svg, H), mr = AX.R;
+    const H = 300, ml = AX.L, mt = AX.T, mb = AX.B;
+    const { W, x: xs, X0 } = S.xAxis(svg, H, tm(f.t)), mr = AX.R;
     const ys = (v) => mt + (1 - v / 36) * (H - mt - mb);
     for (let v = 0; v <= 35; v += 5) { el('line', { x1: ml, x2: W - mr, y1: ys(v), y2: ys(v), stroke: css('--grid') }, svg); const t = el('text', { x: ml - 8, y: ys(v) + 4, 'text-anchor': 'end', 'font-size': 11, fill: css('--muted') }, svg); t.textContent = v; }
     if (f.thr != null) {
@@ -130,7 +136,7 @@
       const tl = el('text', { x: ml + 6, y: ty - 6, 'font-size': 11, fill: css('--bad'), 'font-weight': 600 }, svg); tl.textContent = '피크 기준 ' + fmt(f.thr, 2) + ' kW';
     }
     if (!S.live && S.trail.length > 1) el('polyline', { points: S.trail.filter((p) => p[0] >= X0).map((p) => xs(p[0]) + ',' + ys(p[1])).join(' '), fill: 'none', stroke: css('--amber'), 'stroke-width': 1.2, opacity: 0.55 }, svg);
-    const pts = S.history().filter((x) => x.y != null).map((x) => [tm(x.t), x.y]).filter((p) => p[0] >= X0 - 15);
+    const pts = S.history().filter((x) => x.y != null).map((x) => [tm(x.t), x.y]).filter((p) => p[0] >= X0);
     if (pts.length) {
       el('path', { d: 'M' + xs(pts[0][0]) + ',' + ys(0) + ' ' + pts.map((p) => 'L' + xs(p[0]) + ',' + ys(p[1])).join(' ') + ' L' + xs(pts[pts.length - 1][0]) + ',' + ys(0) + 'Z', fill: css('--ink'), opacity: 0.06 }, svg);
       el('polyline', { points: pts.map((p) => xs(p[0]) + ',' + ys(p[1])).join(' '), fill: 'none', stroke: css('--ink'), 'stroke-width': 2.4, 'stroke-linejoin': 'round' }, svg);
@@ -146,12 +152,13 @@
   function drawTop5(f, s) {
     const svg = $('#t5chart'); svg.replaceChildren();
     const H2 = 280, L = AX.L, R = AX.R, T = AX.T, B = AX.B;
-    const { W: W2, x } = S.xAxis(svg, H2);
-    const top5 = S.topRooms(f).map((r) => r[0]), now = tm(f.t), pk = tm(s.at), hist = S.history();
+    const { W: W2, x, X0 } = S.xAxis(svg, H2, tm(f.t));
+    const top5 = S.topRooms(f).map((r) => r[0]), now = tm(f.t), pk = tm(s.at), hist = S.history().filter((h) => tm(h.t) >= X0);
     const top = Math.max(0.2, ...top5.flatMap((c) => hist.map((x) => x.rooms[c] || 0).concat([f.proom[c] ?? 0]))) * 1.12, step = PG.niceStep(top);
     const y = (v) => T + (1 - v / top) * (H2 - T - B);
     PG.axisY(svg, y, top, L, R, W2, step, step < 1 ? 1 : 0);
     el('line', { x1: x(now), x2: x(now), y1: T, y2: H2 - B, stroke: css('--ink2'), 'stroke-dasharray': '2 3' }, svg);
+    const nt = el('text', { x: x(now) + 6, y: T + 12, 'font-size': 11, fill: css('--ink2') }, svg); nt.textContent = (S.live ? '최근 실측 ' : '지금 ') + f.t;
     const leg = $('#t5leg'); leg.replaceChildren(); const labs = [];
     top5.forEach((c, k) => {
       const col = LINE5[k]; let seg = [], prev = null;

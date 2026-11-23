@@ -123,6 +123,13 @@ def test_performance_screen():
         assert na["tp"] == 0 and na["recall"] == 0 and na["fn"] == s["actual_risk"]
         best = max(s["rows"][1:], key=lambda r: r["peak"]["recall"])
         assert s["best_recall"] == best["id"]
+    # 피크 기준점별: 최근 30일 = 학습 때 저장한 오분류표와 같아야 함, 다른 기준도 계산됨
+    e = {r["model_name"]: r for r in client.get("/api/eval").json()["peak_detection"] if r["split"] == "test"}
+    assert all(r["peak"]["tp"] == e[r["id"]]["tp"] and r["peak"]["fp"] == e[r["id"]]["fp"] for r in p["sections"][1]["rows"])
+    for k in ("prev_month", "this_month", "summer"):
+        q = client.get("/api/performance", params={"thr": k}).json()
+        assert q["thr"]["key"] == k and q["thr"]["n"] > 0
+    assert client.get("/api/performance", params={"thr": "winter"}).json()["thr"]["n"] == 0
 
 
 def test_history_screen(day):

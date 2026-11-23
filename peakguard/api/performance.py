@@ -1,6 +1,9 @@
 """[5] API — 세 번째 화면 '모델성능 및 오경보율 비교'
 
-  GET /api/performance
+  GET /api/performance?thr=recent30|prev_month|this_month|summer|winter
+
+피크 기준점(첫 화면 '피크 기준' 콤보박스와 같은 다섯 가지)에 따라 오분류표를 다시 판정합니다
+(evaluation/peak_by_threshold.py). 예측 오차 표는 기준과 상관없이 같습니다.
 
 화면 위쪽 '채널별 예측 후 합산', 아래쪽 '채널별 합산 후 예측' 두 묶음을 돌려줍니다.
 두 묶음 모두 같은 시험기간·같은 예측 시점(공통 표본)에서 건물 합계 실측과 비교한 결과입니다.
@@ -10,7 +13,7 @@
 """
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 from ..config import BASE_DAY, DISPLAY, FAMILIES, METHODS
 from .common import info, num, q
@@ -35,23 +38,38 @@ def _row(ev, pk, mid: str) -> dict | None:
 
 
 @router.get("/performance")
-def performance():
+def performance(thr: str = Query("recent30", pattern="^(recent30|prev_month|this_month|summer|winter)$")):
+    from ..evaluation.peak_by_threshold import compute
+    from ..models.thresholds import KEYS, NAMES
     inf = info()
+    pt = compute()
     ev = q("SELECT * FROM st_eval WHERE scope='TOTAL'")
     pk = q("SELECT * FROM st_peak_eval")
     base = _row(ev, pk, BASE_DAY)
-    out = {"test": [inf["test_start"], inf["test_end"]], "splits": inf.get("splits"), "sections": []}
+    sel = pt[thr]
+    def _pk(p):
+        return {"tp": p["tp"], "fn": p["fn"], "fp": p["fp"], "tn": p["tn"], "n": p["n"], "miscls": num(p["miscls"], 4),
+                "recall": num(p["recall"], 4) if p["tp"] + p["fn"] else None,
+                "precision": num(p["precision"], 4) if p["tp"] + p["fp"] else None}
+    vals = [v for v in sel["days"].values() if v is not None]
+    out = {"test": [inf["test_start"], inf["test_end"]], "splits": inf.get("splits"), "sections": [],
+           "thr": {"key": thr, "name": NAMES[thr], "n": sel["n"], "actual_risk": sel["actual_risk"],
+                   "kw_min": min(vals) if vals else None, "kw_max": max(vals) if vals else None},
+           "thr_options": [{"key": k, "name": NAMES[k], "n": pt[k]["n"], "actual_risk": pt[k]["actual_risk"]} for k in KEYS]}
     for key in ("sum", "direct"):                                # 화면 위: 예측 후 합산, 아래: 합산 후 예측
         rows = [base] + [_row(ev, pk, f[3] if key == "sum" else f[2]) for f in FAMILIES]
         rows = [r for r in rows if r]
         for r in rows:
             r["gain"] = None if r["id"] == BASE_DAY else num((base["mae"] - r["mae"]) / base["mae"] * 100, 1)
+        for r in rows:                                       # 고른 피크 기준으로 다시 판정
+            r["peak"] = _pk(sel["rows"][r["id"]]) if r["id"] in sel["rows"] else None
         bp = base["peak"]
         none_row = {"name": "경보 없음 (비교용)", "tp": 0, "fn": bp["tp"] + bp["fn"], "fp": 0, "tn": bp["fp"] + bp["tn"],
                     "n": bp["n"], "recall": 0.0, "precision": None,
-                    "miscls": num((bp["tp"] + bp["fn"]) / bp["n"], 4)}
+                    "miscls": num((bp["tp"] + bp["fn"]) / bp["n"], 4) if bp["n"] else None}
         cand = [r for r in rows if r["id"] != BASE_DAY and r["peak"]]
-        best_recall = max(cand, key=lambda r: (r["peak"]["recall"], -r["peak"]["fp"]))["id"] if cand else None
+        cand_r = [r for r in cand if r["peak"]["recall"] is not None]
+        best_recall = max(cand_r, key=lambda r: (r["peak"]["recall"], -r["peak"]["fp"]))["id"] if cand_r else None
         best_mae = min(cand, key=lambda r: r["mae"])["id"] if cand else None
         out["sections"].append({"key": key, "title": METHODS[key], "rows": rows, "no_alarm": none_row,
                                 "best_recall": best_recall, "best_mae": best_mae,

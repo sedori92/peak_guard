@@ -52,7 +52,9 @@ def export(date: str = "2026-10-28", model: str = DEFAULT_MODEL, out: str | None
                                       **{k: [fr[k] for fr in r["frames"]] for k in PER_MODEL}}
         replay[d] = day
         print(f"  재생 {d} ({len(day['frames'])}칸)")
-    api["api/performance"] = performance.performance()
+    from ..models.thresholds import KEYS
+    for k in KEYS:                                                         # 세 번째 화면: 피크 기준점 5종
+        api[f"api/performance?thr={k}"] = performance.performance(k)
     api["api/alerts/template"] = {"message": DEFAULT_MESSAGE}
     api["api/contacts"] = []                                              # 연락처(개인정보)는 시연 파일에 넣지 않음
     rooms = list(replay[dates[0]]["frames"][0]["rooms"])

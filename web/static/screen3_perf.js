@@ -3,7 +3,9 @@
 //   아래 구역: 채널별 합산 후 예측   (96개 채널을 먼저 더한 건물 합계를 바로 예측)
 //   각 구역  : ① 예측 오차 표 (전일 동일시각 · LightGBM · XGBoost · Random Forest · Bi-LSTM)
 //              ② 피크경보 오분류표 (모델 고르기 → 맞힘·놓침·헛경보·정상) + 재현율 비교표 (+ '경보 없음' 비교용 줄)
-//   모두 시험기간(학습에 쓰지 않은 기간) 실측과 비교한 결과. 서버 자료: /api/performance
+//   맨 위 '피크 기준' 콤보박스: 최근 30일·전월·당월·7~9월·12~2월 95번째 백분위수 → 오분류표를 그 기준으로 다시 판정
+//     (첫 화면 피크 기준과 연동. 예측 오차 표는 기준과 상관없이 같음)
+//   모두 시험기간(학습에 쓰지 않은 기간) 실측과 비교한 결과. 서버 자료: /api/performance?thr=
 (() => {
   const PG = window.PG, $ = PG.$, fmt = PG.fmt;
   const P3 = PG.S3 = { loaded: false, sel: {} };
@@ -11,13 +13,19 @@
   const mk = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
   const row = (tb, cells, th, cls) => { const tr = mk('tr', cls); cells.forEach((v) => tr.append(mk(th ? 'th' : 'td', null, v))); tb.append(tr); return tr; };
 
-  P3.show = async () => {
-    if (P3.loaded) return; P3.loaded = true;
-    try { P3.D = await PG.api('api/performance'); } catch (e) { $('#perfnote').textContent = e.message; return; }
-    const D = P3.D, sp = D.splits || {};
+  P3.show = async (force) => {
+    const key = PG.S1.thrKey || 'recent30';
+    if (P3.loaded === key && !force) return; P3.loaded = key;
+    try { P3.D = await PG.api('api/performance?thr=' + key); } catch (e) { $('#perfnote').textContent = e.message; return; }
+    const D = P3.D, sp = D.splits || {}, T = D.thr;
+    const sel = $('#pthrsel'); sel.replaceChildren();
+    D.thr_options.forEach((o) => { const op = new Option(`${o.name} 95번째 백분위수` + (o.n ? '' : ' — 자료 없음'), o.key, false, o.key === key); op.disabled = !o.n; sel.add(op); });
+    sel.onchange = () => { PG.S1.setThr(sel.value); P3.show(true); };
+    $('#pthrinfo').textContent = T.n ? `기준값 ${T.kw_min === T.kw_max ? fmt(T.kw_min, 2) : fmt(T.kw_min, 2) + ' ~ ' + fmt(T.kw_max, 2)} kW · 비교 발행 ${T.n.toLocaleString()}개 · 실제 피크 위험 ${T.actual_risk}건` : '이 기준은 계산할 자료가 없습니다';
     $('#perfnote').textContent = `시험기간 ${D.test[0]} ~ ${D.test[1]} (학습·검증에 쓰지 않은 기간)의 실측과 비교. ` +
       (sp.train ? `학습 ${sp.train[0].slice(0, 10)}~${sp.train[1].slice(0, 10)} · 검증 ${sp.val[0].slice(0, 10)}~${sp.val[1].slice(0, 10)} · ` : '') +
-      `모든 모델은 같은 발행 시각 ${D.sections[0].rows[0].peak.n.toLocaleString()}개에서 비교(공통 표본). 피크 위험 = 다음 1시간 4칸 중 하나라도 그날 피크 기준 이상.`;
+      `모든 모델은 같은 발행 시각에서 비교(공통 표본). 피크 위험 = 다음 1시간 4칸 중 하나라도 그날 '${T.name}' 기준 이상. 기준을 바꾸면 ② 오분류표만 바뀌고 ① 예측 오차는 같습니다.` +
+      (T.n && !T.actual_risk ? ` ※ 시험기간에 '${T.name}' 기준을 넘은 적이 없어 재현율을 계산할 수 없습니다(헛경보만 비교).` : '');
     const box = $('#perfsections'); box.replaceChildren();
     D.sections.forEach((s) => box.append(section(s)));
   };
@@ -45,7 +53,7 @@
     const grid = mk('div', 'grid2 cmgrid');
     const left = mk('div'), right = mk('div');
     const ctl = mk('div', 'chctl'); const lab = mk('label', null, '모델 '); const sel = mk('select');
-    s.rows.forEach((r) => sel.add(new Option(r.name, r.id, false, r.id === s.best_recall)));
+    s.rows.forEach((r) => sel.add(new Option(r.name, r.id, false, r.id === (s.best_recall || s.rows[1].id))));
     lab.append(sel); ctl.append(lab);
     const cm = mk('div', 'cm');
     left.append(mk('h3', null, '② 피크경보 오분류표'), ctl, cm);
@@ -71,7 +79,7 @@
       tr.onclick = () => { sel.value = r.id; draw(); };
     });
     const na = s.no_alarm;
-    row(t2, [na.name, na.tp, na.fn, na.fp, pct(na.recall, 0), '—', pct(na.miscls)], false, 'muted');
+    row(t2, [na.name, na.tp, na.fn, na.fp, s.actual_risk ? pct(na.recall, 0) : '—', '—', pct(na.miscls)], false, 'muted');
     const w2 = mk('div', 'tscroll'); w2.append(t2);
     const n2 = mk('p', 'note', `실제 피크 위험 ${s.actual_risk}건. '경보 없음'은 한 번도 경보를 내지 않아도 오분류율이 ${pct(na.miscls)}로 낮게 나온다는 것을 보여 주는 비교용 줄입니다 — ` +
       `위험이 드물어서 오분류율만 보면 판단을 그르칩니다. 피크를 놓치지 않는 것이 목적이므로 재현율(맞힘 ÷ 실제 위험)을 먼저 보고, 헛경보(정밀도)는 그다음에 봅니다. ` +

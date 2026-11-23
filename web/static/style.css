@@ -263,3 +263,18 @@ table.perf tr.muted td{color:var(--muted);font-style:italic}
 .thr{justify-self:end}
 .histgrid .tile{min-height:76px}
 .sharebox .share div:last-child{min-width:104px}
+
+/* ---- 3차 수정: 상태 띠 순서(피크 기준 | 판정 | 현재 수요전력), 높이 줄이고 글자 크기 맞춤 ---- */
+.status{grid-template-columns:minmax(0,1fr) minmax(0,1.3fr) minmax(0,1fr);gap:0;padding:10px 0;align-items:stretch}
+.status > div{padding:0 20px;display:flex;flex-direction:column;justify-content:center;gap:3px;min-width:0}
+.status .thr{justify-self:stretch;align-items:flex-start;min-width:0}
+.status .judge{flex-direction:row;align-items:center;gap:14px;border-left:1px solid var(--line);border-right:1px solid var(--line)}
+.status .nowbox{border:0;min-width:0}
+.status .thr label,.status .nowbox .l{font-size:12.5px;color:var(--ink2)}
+.status .thr b,.status .nowbox .v{font-family:var(--f-num);font-size:24px;font-weight:700;line-height:1.15;letter-spacing:-.01em}
+.status .nowbox .v small{font-size:13px}
+.status .thr small,.status .nowbox .s{font-size:11.5px;color:var(--muted)}
+.status .thr select{font-size:12.5px;padding:3px 6px;max-width:100%}
+.status .msg{font-size:14px} .status .msg small{font-size:11.5px}
+.status .pill{font-size:14px;padding:6px 14px}
+@media (max-width:1100px){.status{grid-template-columns:1fr}.status .judge{border:0;padding:8px 20px}}
