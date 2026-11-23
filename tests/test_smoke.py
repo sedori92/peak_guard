@@ -96,16 +96,65 @@ def test_report_peaks_and_xlsx(day):
     assert wb.sheetnames == ["요약", "피크 변동기록", "기여도 Top10", "15분 기록"]
 
 
-def test_split_and_sum_models(day):
-    """학습·검증·시험 기간 분할 + 채널합산 모델 + 오분류표."""
+def test_split_and_models(day):
+    """학습·검증·시험 기간 분할 + 4개 모델 × 2개 방식 + 오분류표."""
     e = client.get("/api/eval").json()
     assert e["splits"]["train"][1] < "2026-09-15" and e["splits"]["test"][0] == "2026-10-20 15:15"
     names = {(r["model_name"], r["split"]) for r in e["peak_detection"]}
-    assert ("RF_SUM", "test") in names and ("RF_SUM", "val") in names
+    for m in ("LightGBM", "XGBoost", "RandomForest", "BiLSTM", "LGBM_SUM", "XGB_SUM", "RF_SUM", "LSTM_SUM"):
+        assert (m, "test") in names, m
     for r in e["peak_detection"]:
         assert r["tp"] + r["fp"] + r["fn"] + r["tn"] == r["n"]
-    c = client.get("/api/sumcompare", params={"date": day}).json()
-    assert c["lines"]["RF_SUM"] and c["lines"]["RandomForest"] and len(c["rooms"]) >= 20
-    assert c["perf"]["Random Forest 채널합산"]["method"] == "채널합산"
-    d = client.get("/api/replay", params={"date": day, "model": "RF_SUM"}).json()
-    assert len(d["frames"][40]["proom"]) == 34
+    for m in ("XGB_SUM", "BiLSTM"):
+        d = client.get("/api/replay", params={"date": day, "model": m}).json()
+        assert len(d["frames"][40]["proom"]) == 34 and len(d["room_thr"]) == 34
+
+
+def test_performance_screen():
+    """세 번째 화면: 위 '채널별 예측 후 합산' / 아래 '채널별 합산 후 예측', 재현율·경보 없음 줄."""
+    p = client.get("/api/performance").json()
+    assert [s["key"] for s in p["sections"]] == ["sum", "direct"]
+    for s in p["sections"]:
+        assert [r["name"] for r in s["rows"]] == ["전일 동일시각", "LightGBM", "XGBoost", "Random Forest", "Bi-LSTM"]
+        na = s["no_alarm"]
+        assert na["tp"] == 0 and na["recall"] == 0 and na["fn"] == s["actual_risk"]
+        best = max(s["rows"][1:], key=lambda r: r["peak"]["recall"])
+        assert s["best_recall"] == best["id"]
+
+
+def test_history_screen(day):
+    """두 번째 화면: 배치도(그 시각 96개 채널) + 전체·채널별 영향요인."""
+    t = client.get("/api/report/peaks", params={"period": "day", "date": day}).json()["summary"]["peak_time"]
+    s = client.get("/api/snapshot", params={"time": t}).json()
+    assert s["n_channels"] == 96 and abs(s["rooms_kw"] + s["common_kw"] - s["total_kw"]) < 0.05
+    for series in ("TOTAL", s["channels"][0]["channel"]):
+        f = client.get("/api/factors", params={"time": t, "series": series}).json()
+        assert f["items"] and abs(f["base_kw"] + sum(x["kw"] for x in f["items"]) - f["pred_kw"]) < 0.05
+
+
+def test_contacts_and_alerts():
+    """경보발령 선택: 연락처 추가·수정·삭제, 경보 발령 기록 (시험용 연락처는 끝나면 지움)."""
+    c = client.post("/api/contacts", json={"channel_id": "M008-04", "name": "시험", "email": "t@example.com"}).json()
+    try:
+        assert client.post("/api/contacts", json={"channel_id": "M008-04", "email": "bad"}).status_code == 400
+        u = client.put(f"/api/contacts/{c['contact_id']}", json={"channel_id": "M008-04", "name": "시험2", "phone": "010-1234-5678"}).json()
+        assert u["name"] == "시험2"
+        assert "피크기준" in client.get("/api/alerts/template").json()["message"]
+        a = client.post("/api/alerts", json={"channels": ["M008-04", "M004-02"], "mode": "시험"}).json()
+        assert a["recipients"] == 1 and a["no_contact"] == ["2층 02번"]
+        assert client.post("/api/alerts", json={"channels": []}).status_code == 400
+    finally:
+        client.delete(f"/api/contacts/{c['contact_id']}")
+        from sqlalchemy import text
+        from peakguard.api.common import engine
+        with engine.begin() as con:
+            con.execute(text("DELETE FROM alert_log WHERE mode='시험'"))
+
+
+def test_live_connect():
+    """[실시간 연결]: 새 데이터 확인(없으면 그대로) → 가장 최근 실측 기준 예측."""
+    s = client.post("/api/live/sync").json()
+    assert s["after_last"] >= s["before_last"]
+    for m in ("LightGBM", "LGBM_SUM"):
+        r = client.post("/api/live/predict", params={"model": m}).json()
+        assert len(r["pred"]) == 4 and len(r["rooms_pred"]) == 34 and r["time"] == s["after_last"]

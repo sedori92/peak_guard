@@ -146,3 +146,29 @@ CREATE TABLE IF NOT EXISTS peak_threshold (
 
 -- 14) 실행 정보 (평가기간, 중요도 순위, 호실 채널 목록 등 JSON)
 CREATE TABLE IF NOT EXISTS st_meta ( key VARCHAR(40) PRIMARY KEY, value TEXT );
+
+-- 15) 입주자 연락처 장부 (화면 '경보발령 선택 > 연락처 관리'). 개인정보 — DB 파일에만 저장, 깃허브 제외
+CREATE TABLE IF NOT EXISTS tenant_contact (
+    contact_id INTEGER PRIMARY KEY,                      -- 자동 번호
+    channel_id VARCHAR(16) NOT NULL REFERENCES channel(channel_id),   -- 호실 채널 (예: M008-CH04 = 4층 04번)
+    name VARCHAR(60), email VARCHAR(120), phone VARCHAR(30), memo TEXT,
+    created_at TIMESTAMP, updated_at TIMESTAMP
+);
+
+-- 16) 경보 발령 기록 장부: 언제·어떤 예측을 보고·어느 호실에·어떤 안내문을 보냈는지
+CREATE TABLE IF NOT EXISTS alert_log (
+    alert_id INTEGER PRIMARY KEY, created_at TIMESTAMP NOT NULL,
+    ref_time VARCHAR(16),            -- 화면 기준 시각 (시연=재생 시각, 실시간=최신 실측 시각)
+    mode VARCHAR(10),                -- 시연 / 실시간
+    model_name VARCHAR(20), predicted_max_kw REAL, threshold_kw REAL,
+    channels TEXT,                   -- 발령 대상 호실 채널 (쉼표 구분)
+    include_common BOOLEAN,          -- 공용부분 포함 (최후 수단)
+    message TEXT, recipients INTEGER, email_sent INTEGER, status VARCHAR(40)
+);
+
+-- 17) 실시간 예측 기록 장부: '실시간 연결'을 누를 때마다 만든 다음 1시간 예측
+CREATE TABLE IF NOT EXISTS live_forecast (
+    model_name VARCHAR(20) NOT NULL, series_id VARCHAR(16) NOT NULL, issued_at TIMESTAMP NOT NULL,
+    horizon_min INTEGER NOT NULL, predicted_kw REAL NOT NULL, created_at TIMESTAMP,
+    PRIMARY KEY (model_name, series_id, issued_at, horizon_min)
+);

@@ -6,7 +6,7 @@
     python run.py 3            # 예측모델 학습·평가·저장  (--skip-lstm 로 Bi-LSTM 제외)
     python run.py 4            # 예측모델별 평가 표·그래프
     python run.py 5            # API 서버 + 관리자 화면 (http://localhost:8000)
-    python run.py 6            # 화면: 시연용 HTML 한 파일 내보내기 (--date --model)
+    python run.py 6            # 화면: 시연용 HTML 한 파일 내보내기 (--date, 세 화면·8개 모델 포함)
     python run.py 7            # 동작확인 (자동 시험)
     python run.py 8 -m "메시지"  # 깃허브 반영 (변경 파일 확인 → 커밋)
     python run.py 9            # 깃허브 푸시 (최신 내용 받아온 뒤 올리기)

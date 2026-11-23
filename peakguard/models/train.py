@@ -10,9 +10,10 @@
   검증  2026-09-15 ~ 10-06    → Bi-LSTM 조기 종료, 모델 고르기(검증 MAE)
   시험  2026-10-20 15:15 ~ 11-02 16:30 발행 → 최종 성능 (공통 표본 1,155 발행)
 
-모델:
-  전일 동일시각(기업 기준모델) · 최근값 유지 · LightGBM · RandomForest · Bi-LSTM  ← 건물 전체 직접 예측
-  LGBM_SUM · RF_SUM  ← 채널합산(채널 예측을 같은 시각끼리 더한 값, 보조 비교용)
+모델 (화면 '예측모델 선택'·'방식 선택' 콤보버튼과 같은 구성):
+  전일 동일시각 = 기업 기준모델 (어제 같은 시각 값을 그대로 씀)
+  채널별 합산 후 예측 : LightGBM · XGBoost · RandomForest · BiLSTM  (건물 합계 한 줄을 바로 예측)
+  채널별 예측 후 합산 : LGBM_SUM · XGB_SUM · RF_SUM · LSTM_SUM      (채널 61개 예측을 같은 시각끼리 더함)
 
 결과: DB 의 st_forecast(시험기간 예측값), st_eval(검증·시험 성능), st_peak_eval(오분류표),
       st_channel_eval(채널별 오차), st_explain(SHAP), peak_threshold, st_meta + models/ 폴더 모델 파일
@@ -28,17 +29,17 @@ import numpy as np
 import pandas as pd
 from sqlalchemy import text
 
-from ..config import (BASE_DAY, BASE_LAST, DAY, H, MAPE_MIN_CHANNEL_KW, MAPE_MIN_TOTAL_KW, MODEL_DIR, MODELS,
+from ..config import (BASE_DAY, DAY, H, MAPE_MIN_CHANNEL_KW, MAPE_MIN_TOTAL_KW, MODEL_DIR, MODELS,
                       SUM_BASE, TEST_END, TEST_START, TRAIN_END, VAL_END, VAL_START, WEEK)
 from ..database.connection import create_schema, get_engine
 from ..database.tables_forecast import meta as fc_meta
 from ..database.tables_forecast import st_meta
 from ..evaluation.metrics import metrics, peak_detection
-from . import baseline, bilstm_model, lightgbm_model, random_forest_model
+from . import baseline, bilstm_model, lightgbm_model, random_forest_model, xgboost_model
 from .features import FEAT_COLS, FEATURES, features
 from .grid import load_grid, take, thresholds
 
-TREE_MODELS = {"LightGBM": lightgbm_model, "RandomForest": random_forest_model}
+TREE_MODELS = {"LightGBM": lightgbm_model, "XGBoost": xgboost_model, "RandomForest": random_forest_model}
 RESULT_TABLES = ("st_forecast", "st_eval", "st_peak_eval", "st_channel_eval", "st_explain", "st_meta", "peak_threshold")
 
 
@@ -89,7 +90,7 @@ def run(skip_lstm: bool = False) -> None:
 
     print("4) 기준모델")
     for k in EV:
-        for name in (BASE_DAY, BASE_LAST):
+        for name in (BASE_DAY,):                      # 기업 기준모델: 전일 동일시각
             preds[k][name] = {s: to_mat(X[k][s], baseline.predict(X[k][s], name), s, k) for s in range(S)}
 
     MODEL_DIR.mkdir(exist_ok=True)

@@ -106,8 +106,10 @@ def get_engine(url: str | None = None) -> Engine:
 def create_schema(engine: Engine) -> None:
     """기본 테이블 + 예측·기상 테이블 + 뷰를 한 번에 생성 (이미 있으면 그대로 둠)."""
     from .tables_forecast import meta as forecast_meta
+    from .tables_ops import meta as ops_meta
     metadata.create_all(engine)
     forecast_meta.create_all(engine)
+    ops_meta.create_all(engine)          # 입주자 연락처·경보 발령 기록·실시간 예측 기록
     sql = VIEW_SQL
     if engine.dialect.name == "postgresql":
         sql = sql.replace("CREATE VIEW IF NOT EXISTS", "CREATE OR REPLACE VIEW")

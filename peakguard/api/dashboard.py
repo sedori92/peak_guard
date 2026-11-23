@@ -1,7 +1,8 @@
-"""[5] API 서버 · [6] 화면 연결 — 관리자 화면이 쓰는 조회 API (요구사항 FR-AD-002)
+"""[5] API — 첫 번째 화면 '예측 및 경보' (시연 재생)
 
-    GET /api/days                         재생 가능한 날짜·모델 목록
-    GET /api/replay?date=&model=          하루치 화면 데이터 (전체 피크 선: 실측·예측·피크 기준·호실·SHAP·성능)
+    GET /api/days                         재생 기준일(시험기간 날짜)·방식·예측모델 목록
+    GET /api/replay?date=&model=          하루치 화면 데이터: 건물 합계 실측·다음 1시간 예측·피크 기준선,
+                                          호실 실측·예측, 호실 피크 기준(직전 30일 P95)
     GET /api/channel?date=&model=&channel= 채널별 피크 선 (채널 실측·15분×4 예측·채널 피크 기준)
     GET /api/forecast?issued_at=&model=   특정 발행 시각의 15분×4 예측
     GET /api/eval                         모델 성능 (전체·채널, 선행시간별) + 피크 감지
@@ -14,7 +15,8 @@ import numpy as np
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Query
 
-from ..config import DEFAULT_MODEL, DISPLAY, FLOORS, METHOD, PEAK_PERCENTILE, PEAK_WINDOW_DAYS, SUM_BASE
+from ..config import (DEFAULT_METHOD, DEFAULT_MODEL, DISPLAY, FAMILIES, FLOORS, METHOD, METHODS, PEAK_PERCENTILE,
+                      PEAK_WINDOW_DAYS, SUM_BASE)
 from .common import WEEK_KO, check_model, has_table, info, num, q, room_key, to_local
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
@@ -28,8 +30,12 @@ def days():
     m = q("""SELECT substr(measured_at,1,10) AS date, COUNT(*) AS n FROM measurement
              WHERE measured_at >= :a GROUP BY 1""", a=f"{d.date.min()} 00:00:00") if len(d) else d
     d = d[d.date.isin(m[m.n >= 96 * 48].date)]           # 실측도 절반 이상 있는 날만
+    have = set(info()["models"])
+    fams = [{"family": f[0], "name": f[1], "direct": f[2], "sum": f[3]} for f in FAMILIES if f[2] in have and f[3] in have]
     return {"days": d.to_dict("records"), "models": [{"id": m, "name": DISPLAY.get(m, m)} for m in info()["models"]],
-            "default_model": DEFAULT_MODEL, "test_start": info()["test_start"], "test_end": info()["test_end"]}
+            "methods": [{"id": k, "name": v} for k, v in METHODS.items()], "families": fams,
+            "default_model": DEFAULT_MODEL, "default_method": DEFAULT_METHOD,
+            "test_start": info()["test_start"], "test_end": info()["test_end"]}
 
 
 @router.get("/eval")
@@ -104,6 +110,14 @@ def replay(date: str = Query(..., description="YYYY-MM-DD"), model: str = "Light
               AND horizon_min=60 AND issued_at BETWEEN :a AND :b""", a=t0, b=t1)
     lg_pred = dict(zip(pd.to_datetime(lg.issued_at).dt.strftime("%H:%M"), lg.predicted_kw))
 
+    # 호실별 피크 기준 = 그날 직전 30일 그 호실 15분 수요전력 P95 ('호실별 피크 예측 가능성'의 분모)
+    w0 = (pd.Timestamp(date) - pd.Timedelta(days=PEAK_WINDOW_DAYS)).strftime("%Y-%m-%d %H:%M:%S")
+    hist = q("""SELECT m.channel_id, m.demand_kw FROM measurement m JOIN channel c ON c.channel_id=m.channel_id
+                WHERE c.meter_id IN ('M002','M004','M006','M008') AND m.measured_at >= :a AND m.measured_at < :b""",
+             a=w0, b=t0)
+    room_thr = {room_key(c): (num(float(np.percentile(g.demand_kw, PEAK_PERCENTILE)), 3) if len(g) >= 7 * 96 else None)
+                for c, g in hist.groupby("channel_id")}
+
     frames = []
     for t in tot.index:
         pred = [tot.loc[t].get(h) for h in (15, 30, 45, 60)]
@@ -136,6 +150,7 @@ def replay(date: str = Query(..., description="YYYY-MM-DD"), model: str = "Light
 
     d = pd.Timestamp(date)
     return {"day": f"{date}({WEEK_KO[d.dayofweek]})", "date": date, "model": DISPLAY.get(model, model), "model_id": model,
+            "method": METHOD.get(model), "method_name": METHODS.get(METHOD.get(model), "기준"), "room_thr": room_thr,
             "frames": frames, "imp": inf["importance"], "perf": perf, "peak": peak, "floors": FLOORS,
             "test_start": inf["test_start"], "test_end": inf["test_end"], "splits": inf.get("splits"),
             "thr_method": "직전 30일 전체 합산 15분 수요전력 P95"}

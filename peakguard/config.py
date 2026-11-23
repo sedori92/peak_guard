@@ -48,13 +48,22 @@ PEAK_PERCENTILE = 95              #           의 95백분위수(P95)
 MAPE_MIN_TOTAL_KW = 1.0           # MAPE 계산 제외 기준 (저사용량)
 MAPE_MIN_CHANNEL_KW = 0.1
 
-BASE_DAY, BASE_LAST = "전일 동일시각", "최근값 유지"
-MODELS = [BASE_DAY, BASE_LAST, "LightGBM", "RandomForest", "BiLSTM", "LGBM_SUM", "RF_SUM"]
-DISPLAY = {BASE_DAY: BASE_DAY, BASE_LAST: BASE_LAST, "LightGBM": "LightGBM",
-           "RandomForest": "Random Forest", "BiLSTM": "Bi-LSTM",
-           "LGBM_SUM": "LightGBM 채널합산", "RF_SUM": "Random Forest 채널합산"}
-# 채널합산 모델: 건물 전체 = 해당 모델의 채널(61개 활성) 예측을 같은 시각끼리 더한 값 (보조 비교용)
-SUM_BASE = {"LGBM_SUM": "LightGBM", "RF_SUM": "RandomForest"}
-METHOD = {BASE_DAY: "기준", BASE_LAST: "비교", "LightGBM": "건물 직접", "RandomForest": "건물 직접",
-          "BiLSTM": "건물 직접", "LGBM_SUM": "채널합산", "RF_SUM": "채널합산"}
+BASE_DAY, BASE_LAST = "전일 동일시각", "최근값 유지"      # 최근값 유지는 v0.2 화면에서 쓰지 않음
+
+# ---- 화면 왼쪽 위 콤보버튼: 예측 방식 × 예측모델 ----------------------------
+#   채널별 합산 후 예측 = 96개 채널을 같은 시각끼리 먼저 더한 '건물 합계' 한 줄을 모델이 바로 예측 (기업 권장)
+#   채널별 예측 후 합산 = 활성 채널 61개를 각각 예측한 뒤 같은 시각끼리 더해 건물 합계를 만듦
+METHODS = {"direct": "채널별 합산 후 예측", "sum": "채널별 예측 후 합산"}
+FAMILIES = [  # (모델 이름, 화면 이름, 합산 후 예측 결과 이름, 예측 후 합산 결과 이름)
+    ("LightGBM", "LightGBM", "LightGBM", "LGBM_SUM"),
+    ("XGBoost", "XGBoost", "XGBoost", "XGB_SUM"),
+    ("RandomForest", "Random Forest", "RandomForest", "RF_SUM"),
+    ("BiLSTM", "Bi-LSTM", "BiLSTM", "LSTM_SUM"),
+]
+SUM_BASE = {f[3]: f[2] for f in FAMILIES}          # 예측 후 합산 결과 → 채널 예측을 만든 모델
+MODELS = [BASE_DAY] + [f[2] for f in FAMILIES] + [f[3] for f in FAMILIES]
+DISPLAY = {BASE_DAY: BASE_DAY, BASE_LAST: BASE_LAST}
+DISPLAY |= {f[2]: f[1] for f in FAMILIES} | {f[3]: f[1] for f in FAMILIES}
+METHOD = {BASE_DAY: "기준"} | {f[2]: "direct" for f in FAMILIES} | {f[3]: "sum" for f in FAMILIES}
+DEFAULT_METHOD = "direct"
 DEFAULT_MODEL = "LightGBM"

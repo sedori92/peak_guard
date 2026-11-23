@@ -3,13 +3,18 @@
     python run.py 5                         # http://localhost:8000  (API 문서: /docs)
     uvicorn peakguard.api.app:app --port 8000
 
-라우터별 파일
-    api/dashboard.py  화면 조회 API (/api/days, /api/replay, /api/channel, /api/forecast, /api/eval)
-    api/upload.py     [11] CSV 업로드 (/api/upload)
-    api/compare.py    보조화면 채널합산(Random Forest) 비교 (/api/sumcompare)
-    아래 /api/report       [10] 주간·월간 보고서 텍스트
-         /api/report/peaks [10] 최고관리자 보고서 미리보기 (일·주·월·연 피크 변동기록 + 기여도 Top10)
-         /api/report/xlsx  [10] 같은 내용 스프레드시트 내려받기
+화면별 파일 (v0.2)
+  첫 번째 화면 '예측 및 경보'
+    api/dashboard.py    시연 재생 (/api/days, /api/replay, /api/channel, /api/forecast, /api/eval)
+    api/live.py         [실시간 연결] 버튼 (/api/live/sync, /api/live/predict, /api/live/status)
+    api/alerts.py       '경보발령 선택' 상자 (/api/contacts, /api/alerts)
+  두 번째 화면 '피크이력 및 영향도 분석'
+    api/history.py      최고관리자 보고서·배치도·영향요인 (/api/report/peaks, /api/report/xlsx, /api/snapshot, /api/factors)
+  세 번째 화면 '모델성능 및 오경보율 비교'
+    api/performance.py  (/api/performance)
+  공통
+    api/upload.py       [11] CSV 업로드 (/api/upload)
+    아래 /api/report     [10] 주간·월간 보고서 텍스트
 """
 from __future__ import annotations
 
@@ -18,13 +23,21 @@ from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from ..config import WEB_DIR
-from . import compare, dashboard, upload
+from ..database.connection import create_schema
+from .common import engine
+from . import alerts, dashboard, history, live, performance, upload
 
 app = FastAPI(title="PeakGuard API", version="2.0",
               description="피크가드 — 15분 수요전력 다음 1시간 예측 조회·업로드·보고서 API")
 app.include_router(dashboard.router)
 app.include_router(upload.router)
-app.include_router(compare.router)
+for r in (live.router, alerts.router, history.router, performance.router):
+    app.include_router(r)
+
+# 서버를 켤 때 운영용 장부(입주자 연락처·경보 발령 기록·실시간 예측 기록)가 없으면 만듭니다 (있으면 그대로 둠).
+create_schema(engine)
+
+
 app.mount("/static", StaticFiles(directory=WEB_DIR / "static"), name="static")
 
 
@@ -41,35 +54,6 @@ def report(period: str = Query("week", pattern="^(week|month)$"), date: str = Qu
     except ValueError as e:
         raise HTTPException(400, str(e))
     return txt
-
-
-PERIOD = "^(day|week|month|year)$"
-
-
-@app.get("/api/report/peaks", tags=["report"])
-def report_peaks(period: str = Query("month", pattern=PERIOD), date: str = Query(..., description="YYYY-MM-DD"),
-                 series: bool = False):
-    """[10] 최고관리자 보고서 미리보기: 피크 변동기록(일·주·월·연) + 피크 시각 기여도 Top10."""
-    from ..reports.executive import build
-    r = build(period, date)
-    if not series:
-        r.pop("series")
-    return r
-
-
-@app.get("/api/report/xlsx", tags=["report"])
-def report_xlsx(period: str = Query("month", pattern=PERIOD), date: str = Query(..., description="YYYY-MM-DD")):
-    """[10] 최고관리자 보고서 스프레드시트(.xlsx) 내려받기."""
-    from urllib.parse import quote
-
-    from fastapi.responses import Response
-
-    from ..reports.executive import build, filename, to_xlsx
-    r = build(period, date)
-    if not r["records"]:
-        raise HTTPException(404, f"{r['start']}~{r['end']} 기간에 96개 채널이 모두 수신된 데이터가 없습니다.")
-    return Response(to_xlsx(r), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename(r))}"})
 
 
 @app.get("/api/health", tags=["report"])
