@@ -31,30 +31,29 @@
 
   <!-- ===================== 첫 번째 화면: 예측 및 경보 ===================== -->
   <section class="scr" id="s-predict">
-    <!-- 왼쪽 위 콤보버튼: 방식 선택 · 예측모델 선택 · 재생 기준일 -->
+    <!-- 왼쪽 위 콤보버튼: 방식 선택 · 예측모델 선택 · 재생 기준일 | 오른쪽: 합산 수요전력 구성 (호실 34개 / 공용 62개) -->
     <div class="pickers">
-      <label>방식 <select id="method" aria-label="예측 방식 선택"></select></label>
-      <label>예측모델 <select id="family" aria-label="예측모델 선택"></select></label>
+      <select id="method" aria-label="예측 방식 선택" title="예측 방식"></select>
+      <select id="family" aria-label="예측모델 선택" title="예측모델"></select>
       <label>재생 기준일 <select id="dsel" aria-label="재생 기준일 (시험기간)"></select></label>
-      <span class="note" id="methodnote">—</span>
+      <div class="sharebox">
+        <div class="sharehead"><b>합산 수요전력 구성</b> <span id="sharet">—</span></div>
+        <div class="share" id="share"></div>
+      </div>
     </div>
     <div class="livebar" id="livebar" hidden></div>
 
+    <!-- 상태 띠: 판정 · 안내 | 가운데 현재 수요전력 (크게) | 피크 기준 (콤보박스로 기준점 선택) -->
     <section class="status" id="status" aria-live="polite">
       <span class="pill ok" id="pill">정상</span>
       <div class="msg" id="msg">—</div>
-      <div class="thr">피크 기준 (최근 30일 95번째 백분위수)<b id="thr">—</b><small id="thrnote"></small></div>
+      <div class="nowbox"><div class="l">현재 수요전력 (직전 15분 평균)</div><div class="v" id="k1">—</div><div class="s" id="k1s">96개 계측채널 합산</div></div>
+      <div class="thr">
+        <label for="thrsel">피크 기준</label>
+        <select id="thrsel" aria-label="피크 기준점 선택"></select>
+        <b id="thr">—</b><small id="thrnote"></small>
+      </div>
     </section>
-    <div class="kpis">
-      <div class="kpi"><div class="l">현재 수요전력 (직전 15분 평균)</div><div class="v" id="k1">—</div><div class="s">96개 계측채널 합산</div></div>
-      <div class="kpi"><div class="l">현재전력 (순간값, 실시간)</div><div class="v" id="k2">—</div><div class="s" id="k2s">15분 사이 순간 변동</div></div>
-      <div class="kpi"><div class="l">다음 1시간 최대 예상</div><div class="v" id="k3">—</div><div class="s" id="k3s">—</div></div>
-      <div class="kpi"><div class="l">기온 (기상청 광주)</div><div class="v" id="k4">—</div><div class="s">오늘 최대 수요 <b id="k5" style="font-family:var(--f-num)">—</b></div></div>
-    </div>
-    <div class="card">
-      <h2>합산 수요전력 구성 <span class="sub" id="sharet">—</span></h2>
-      <div class="share" id="share"></div>
-    </div>
 
     <div class="grid2">
       <!-- 상단 변동선: 직전 피크 기준선 + 건물 합계 예측선 -->
@@ -89,7 +88,7 @@
       <div class="card">
         <h2>호실별 피크 예측 가능성 <span class="sub" id="pbt">—</span></h2>
         <div class="pbars" id="pbars"></div>
-        <p class="note">막대 = 다음 1시간 예측 최대 ÷ 그 호실 직전 30일 P95(95번째 백분위수). 100% 이상이면 그 호실이 평소 피크를 넘을 것으로 예상. 오른쪽 % = 예상 피크 시각 건물 합계에서 차지하는 비중.</p>
+        <p class="note">막대 = 다음 1시간 예측 최대 ÷ 그 호실 직전 30일 P95(95번째 백분위수). 100% 이상이면 그 호실이 평소 피크를 넘을 것으로 예상. 왼쪽 kW = 그 호실 다음 1시간 예측 최대.</p>
       </div>
     </div>
   </section>
@@ -113,8 +112,8 @@
       </div>
       <p class="note">줄을 누르면 아래 배치도·영향요인이 그 날(구간)의 피크 시각으로 바뀝니다. 건물 합계 = 96개 계측채널 단순합. 기여도 = 피크 시각 사용 비중(인과 영향·요금 배분율과 다름, 기업 3차 멘토링 답변 ④).</p>
     </div>
-    <!-- 하단: 위에서 고른 피크 시각의 층별 호실 배치도 + 전체 및 채널별 영향요인 -->
-    <div class="grid2">
+    <!-- 하단: 위에서 고른 피크 시각의 층별 호실 배치도 + 전체 및 채널별 영향요인 (반반, 빈 칸 없이) -->
+    <div class="grid2 histgrid">
       <div class="card">
         <h2>층별 호실 배치도 <span class="sub" id="snapt">—</span></h2>
         <div class="plan" id="plan"></div>
@@ -124,7 +123,7 @@
       <div class="card">
         <h2>전체 및 채널별 영향요인 <span class="sub" id="fct">—</span></h2>
         <div class="chctl"><label for="fsel">대상</label><select id="fsel" aria-label="전체 또는 채널 선택"></select></div>
-        <svg id="fchart" viewBox="0 0 460 380" style="width:100%;height:380px" role="img" aria-label="영향요인"></svg>
+        <svg id="fchart" viewBox="0 0 600 330" role="img" aria-label="영향요인"></svg>
         <p class="note">그 피크 시각을 1시간 전에 예측할 때(LightGBM) 각 입력값이 예측을 얼마나 올렸는지(주황) 내렸는지(회색) kW로 보여 줍니다. SHAP(SHapley Additive exPlanations, 예측 기여도 설명).</p>
       </div>
     </div>

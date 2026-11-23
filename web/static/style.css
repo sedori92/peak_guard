@@ -232,3 +232,34 @@ table.perf tr.muted td{color:var(--muted);font-style:italic}
 :root[data-theme="light"] .replay button:not(.btn-live){background:var(--panel)}
 .livebar[hidden]{display:none}
 .replay button:disabled{opacity:.45;cursor:not-allowed}
+
+/* ---- 2차 수정: 상태 띠 가운데 현재 수요전력 · 피크 기준 콤보박스 · 콤보버튼 줄의 합산 수요전력 구성 ---- */
+.pickers{flex-wrap:nowrap}
+.pickers > select{font:inherit;font-size:13px;padding:6px 8px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);min-width:140px}
+.sharebox{flex:1;min-width:280px;display:flex;flex-direction:column;gap:4px}
+.sharehead{font-size:12px;color:var(--ink2);display:flex;gap:8px;align-items:baseline} .sharehead b{color:var(--ink);font-size:13px}
+.sharebox .share{height:24px}
+.status{grid-template-columns:auto minmax(0,1fr) auto auto;gap:22px;padding:16px 20px}
+.nowbox{border-left:1px solid var(--line);border-right:1px solid var(--line);padding:2px 26px;min-width:250px}
+.nowbox .l{font-size:13.5px;color:var(--ink2)}
+.nowbox .v{font-family:var(--f-num);font-size:42px;font-weight:700;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+.nowbox .v small{font-size:16px;color:var(--ink2);margin-left:4px;font-weight:400}
+.nowbox .s{font-size:12px;color:var(--muted)}
+.thr{display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:250px}
+.thr label{font-size:12px;color:var(--ink2)}
+.thr select{font:inherit;font-size:13px;padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);max-width:290px}
+.thr b{font-size:22px} .thr small{font-size:11.5px;color:var(--muted)}
+.replay.is-live #play,.replay.is-live #spd{opacity:.35}
+.replay .btn-live:disabled{opacity:1}
+#chart,#t5chart{height:300px}
+#t5chart{height:280px}
+.histgrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
+.histgrid .tile{min-height:64px}
+.histgrid .tile .k{font-size:15px}
+#fchart{width:100%;display:block}
+.pbrow{grid-template-columns:78px 1fr 118px}
+@media (max-width:1100px){.status{grid-template-columns:auto 1fr}.nowbox{border:0;padding:0}.thr{align-items:flex-start}.pickers{flex-wrap:wrap}}
+.status{grid-template-columns:auto minmax(0,1fr) auto minmax(0,1fr)}
+.thr{justify-self:end}
+.histgrid .tile{min-height:76px}
+.sharebox .share div:last-child{min-width:104px}

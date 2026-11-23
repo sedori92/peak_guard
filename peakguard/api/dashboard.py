@@ -150,7 +150,17 @@ def replay(date: str = Query(..., description="YYYY-MM-DD"), model: str = "Light
             "method": METHOD.get(model), "method_name": METHODS.get(METHOD.get(model), "기준"), "room_thr": room_thr,
             "frames": frames, "imp": inf["importance"], "perf": perf, "peak": peak, "floors": FLOORS,
             "test_start": inf["test_start"], "test_end": inf["test_end"], "splits": inf.get("splits"),
-            "thr_method": "직전 30일 전체 합산 15분 수요전력 P95"}
+            "thr_method": "직전 30일 전체 합산 15분 수요전력 P95",
+            "thr_options": thr_options(date)}
+
+
+def thr_options(date: str) -> dict:
+    """상태 띠 '피크 기준' 콤보박스: 최근 30일·전월·당월·7~9월·12~2월 P95 (models/thresholds.py)."""
+    from ..live.predictor import grid
+    from ..models.thresholds import options
+    from .common import engine
+    g = grid(engine)
+    return options(pd.Series(g.y[0], index=g.times), date)
 
 
 

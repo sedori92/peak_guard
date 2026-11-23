@@ -120,22 +120,24 @@
     rows.forEach((x) => { if (x[2] === 'base') cur = x[1]; else if (x[2] === 'c') cur += x[1]; hi = Math.max(hi, cur, x[1]); lo = Math.min(lo, cur); });
     if (r.actual_kw != null) hi = Math.max(hi, r.actual_kw);
     hi *= 1.1;
-    const W = 460, L = 150, R = W - 60, rh = 360 / rows.length, xv = (v) => L + (v - lo) / (hi - lo) * (R - L);
+    const RH = 26, HH = rows.length * RH + 16, W = PG.fitWidth(svg, HH), L = 170, R = W - 70;   // 화면 폭에 맞춰 글자 크기 그대로
+    svg.style.height = HH + 'px';
+    const rh = RH, xv = (v) => L + (v - lo) / (hi - lo) * (R - L);
     cur = 0;
     rows.forEach((x, k) => {
-      const y = k * rh + rh * 0.2 + 10, hgt = rh * 0.6;
-      const t = el('text', { x: L - 8, y: y + hgt / 2 + 4, 'text-anchor': 'end', 'font-size': 12, fill: css('--ink') }, svg); t.textContent = x[0];
+      const y = k * rh + rh * 0.18 + 12, hgt = rh * 0.64;
+      const t = el('text', { x: L - 10, y: y + hgt / 2 + 5, 'text-anchor': 'end', 'font-size': 13.5, fill: css('--ink') }, svg); t.textContent = x[0];
       let x0, x1, col;
       if (x[2] === 'base') { x0 = xv(0); x1 = xv(x[1]); cur = x[1]; col = css('--muted'); }
       else if (x[2] === 'end') { x0 = xv(0); x1 = xv(x[1]); col = css('--ink'); }
       else { x0 = xv(cur); x1 = xv(cur + x[1]); cur += x[1]; col = x[1] >= 0 ? css('--amber') : css('--muted'); }
       el('rect', { x: Math.min(x0, x1), y, width: Math.max(2, Math.abs(x1 - x0)), height: hgt, rx: 4, fill: col, opacity: x[2] === 'c' && x[1] < 0 ? 0.6 : 1 }, svg);
-      const v = el('text', { x: Math.max(x0, x1) + 5, y: y + hgt / 2 + 4, 'font-size': 11, fill: css('--ink2'), 'font-family': 'IBM Plex Mono, monospace' }, svg);
+      const v = el('text', { x: Math.max(x0, x1) + 6, y: y + hgt / 2 + 5, 'font-size': 12.5, fill: css('--ink2'), 'font-family': 'IBM Plex Mono, monospace' }, svg);
       v.textContent = x[2] === 'c' ? (x[1] >= 0 ? '+' : '') + fmt(x[1], 2) : fmt(x[1], 2);
     });
     if (r.actual_kw != null) {
-      el('line', { x1: xv(r.actual_kw), x2: xv(r.actual_kw), y1: 4, y2: 372, stroke: css('--pred'), 'stroke-dasharray': '5 4' }, svg);
-      const tt = el('text', { x: Math.min(xv(r.actual_kw) + 4, W - 70), y: 10, 'font-size': 11, fill: css('--pred'), 'font-weight': 600 }, svg); tt.textContent = '실측 ' + fmt(r.actual_kw, 2);
+      el('line', { x1: xv(r.actual_kw), x2: xv(r.actual_kw), y1: 4, y2: HH - 4, stroke: css('--pred'), 'stroke-dasharray': '5 4' }, svg);
+      const tt = el('text', { x: Math.min(xv(r.actual_kw) + 4, W - 70), y: 11, 'font-size': 12, fill: css('--pred'), 'font-weight': 600 }, svg); tt.textContent = '실측 ' + fmt(r.actual_kw, 2);
     }
   }
 })();

@@ -108,6 +108,9 @@ def test_split_and_models(day):
     for m in ("XGB_SUM", "BiLSTM"):
         d = client.get("/api/replay", params={"date": day, "model": m}).json()
         assert len(d["frames"][40]["proom"]) == 34 and len(d["room_thr"]) == 34
+    o = d["thr_options"]                                     # 피크 기준 콤보박스 5종
+    assert list(o) == ["recent30", "prev_month", "this_month", "summer", "winter"]
+    assert abs(o["recent30"]["kw"] - d["frames"][40]["thr"]) < 0.02 and o["summer"]["kw"] and o["winter"]["kw"] is None
 
 
 def test_performance_screen():

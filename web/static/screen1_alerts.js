@@ -40,7 +40,7 @@
     item('COMMON', '공용부분 (최후 수단)', `${fmt(f.common, 2)} kW · 관리자 직접 조치`, false);
     rows.slice(0, A.expanded ? rows.length : SHOW).forEach((r) => {
       const nc = nContacts(r.c);
-      item(r.c, S1.roomName(r.c), `${r.pct == null ? '기준 없음' : fmt(r.pct, 0) + '%'} · 연락처 ${nc ? nc + '명' : '없음'}`, r.pct >= 100);
+      item(r.c, S1.roomName(r.c), `${fmt(r.p, 2)} kW · ${r.pct == null ? '기준 없음' : fmt(r.pct, 0) + '%'} · 연락처 ${nc ? nc + '명' : '없음'}`, r.pct >= 100);
     });
     $('#almore').textContent = A.expanded ? '접기' : `더보기 (${rows.length - SHOW}개 호실 더)`;
     $('#alsub').textContent = `${f.t} 발행 · 예상 피크 ${s.at}`;
@@ -49,6 +49,7 @@
   const chosen = () => Object.keys(A.checked).filter((k) => A.checked[k] && k !== 'COMMON');
   function updCount() { $('#alsend').textContent = `경보 발령 (${chosen().length}개 호실${A.checked.COMMON ? ' + 공용' : ''})`; }
   (PG.onFrame = PG.onFrame || []).push(draw);
+  PG.resetAlerts = () => { lastKey = ''; };
   $('#almore').onclick = () => { A.expanded = !A.expanded; lastKey = ''; S1.render(); };
 
   // ---------- [안내문구] 작은 창 ----------

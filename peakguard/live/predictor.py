@@ -21,6 +21,7 @@ from ..database.tables_ops import live_forecast
 from ..models import bilstm_model, lightgbm_model, random_forest_model, xgboost_model
 from ..models.features import features
 from ..models.grid import load_grid
+from ..models.thresholds import options as thr_options
 
 TREE = {"LightGBM": lightgbm_model, "XGBoost": xgboost_model, "RandomForest": random_forest_model}
 _GRID: dict = {}
@@ -121,5 +122,6 @@ def predict_latest(engine, model_id: str) -> dict:
             "p": round(float(np.nan_to_num(g.p[0][i])), 2), "pred": [round(float(v), 2) for v in total],
             "thr": None if thr is None else round(thr, 2), "thr_note": thr_note, "rooms": rooms, "proom": proom,
             "rooms_pred": rooms_pred, "room_thr": room_thr,
+            "thr_options": thr_options(pd.Series(g.y[0], index=g.times), g.times[min(i + 1, len(g.times) - 1)].normalize()),
             "common": round(float(np.nan_to_num(g.y[0][i])) - sum(rooms.values()), 2),
             "age_min": int((now.floor("15min") - t0) / pd.Timedelta("1min"))}
