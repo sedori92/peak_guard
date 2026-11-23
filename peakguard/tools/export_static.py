@@ -69,7 +69,10 @@ def export(date: str = "2026-10-28", model: str = DEFAULT_MODEL, out: str | None
         try:
             api["api/snapshot?time=" + enc(t)] = history.snapshot(t)
             for sid in ["TOTAL"] + (rooms if t in peaks else []):
-                api[f"api/factors?time={enc(t)}&series={enc(sid)}"] = history.factors(t, sid)
+                try:
+                    api[f"api/factors?time={enc(t)}&series={enc(sid)}"] = history.factors(t, sid)
+                except Exception as e:                                     # 예측이 불가했던 시각 등 → 화면에 이유 표시
+                    api[f"api/factors?time={enc(t)}&series={enc(sid)}"] = {"__error": getattr(e, "detail", str(e))}
         except Exception:                                                  # 그 시각 자료가 없으면 건너뜀
             pass
     print(f"  보고서 {len(dates) * 4}개 · 피크 시각 {len(times)}개")

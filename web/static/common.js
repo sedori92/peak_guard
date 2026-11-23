@@ -18,7 +18,7 @@ window.PG = window.PG || {};
   // 서버 조회 (시연용 파일이면 미리 넣은 값에서 찾음)
   PG.api = async (path, opt) => {
     if (PG.STATIC) {
-      if (path in PG.STATIC.api) return PG.STATIC.api[path];
+      if (path in PG.STATIC.api) { const v = PG.STATIC.api[path]; if (v && v.__error) throw new Error(v.__error); return v; }
       const m = path.match(/^api\/replay\?date=([\d-]+)&model=(.+)$/);     // 재생 자료: 날마다 실측 + 모델별 예측을 합침
       const day = m && PG.STATIC.replay[m[1]], mo = day && day.models[decodeURIComponent(m[2])];
       if (mo) {
