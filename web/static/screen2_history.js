@@ -19,7 +19,10 @@
       loadReport();
     }));
     $('#repdate').addEventListener('change', loadReport);
-    if (PG.STATIC) { $('#repdate').disabled = true; $('#repdate').title = '시연용 파일은 재생 기준일 하나만 담겨 있습니다'; }
+    if (PG.STATIC) {             // 시연용 파일: 시험기간 날짜만 담겨 있음
+      const ds = Object.keys(PG.STATIC.replay).sort();
+      $('#repdate').min = ds[0]; $('#repdate').max = ds[ds.length - 1]; $('#repdate').title = `시연용 파일은 ${ds[0]} ~ ${ds[ds.length - 1]} 만 담겨 있습니다`;
+    }
     const fs = $('#fsel'); fs.add(new Option('전체 (건물 합계)', 'TOTAL'));
     S1.hos.forEach((c) => fs.add(new Option('채널 · ' + S1.roomName(c), c)));
     fs.onchange = loadFactors;

@@ -26,10 +26,7 @@ router = APIRouter(prefix="/api", tags=["dashboard"])
 def days():
     d = q("""SELECT substr(issued_at,1,10) AS date, COUNT(DISTINCT issued_at) AS n
              FROM st_forecast WHERE model_name='LightGBM' AND series_id='TOTAL' GROUP BY 1 ORDER BY 1""")
-    d = d[d.n >= 48]                                   # 하루 절반 이상 예측이 있는 날만
-    m = q("""SELECT substr(measured_at,1,10) AS date, COUNT(*) AS n FROM measurement
-             WHERE measured_at >= :a GROUP BY 1""", a=f"{d.date.min()} 00:00:00") if len(d) else d
-    d = d[d.date.isin(m[m.n >= 96 * 48].date)]           # 실측도 절반 이상 있는 날만
+    # 시험기간 모든 날 (첫날 10-20은 15:15부터, 마지막 날 11-02는 16:15까지 — 수집 재개·종료 시각)
     have = set(info()["models"])
     fams = [{"family": f[0], "name": f[1], "direct": f[2], "sum": f[3]} for f in FAMILIES if f[2] in have and f[3] in have]
     return {"days": d.to_dict("records"), "models": [{"id": m, "name": DISPLAY.get(m, m)} for m in info()["models"]],

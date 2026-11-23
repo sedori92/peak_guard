@@ -84,6 +84,8 @@ def factors(time: str = Query(..., description="피크 시각 YYYY-MM-DD HH:MM")
     s = g.series.index(sid)
     m = _load("LightGBM")
     issue = j - H                                            # 1시간 전 발행
+    if issue < 0 or np.isnan(g.y[0][issue]):
+        raise HTTPException(404, f"{g.times[max(issue, 0)]:%m-%d %H:%M} 실측이 없어(수집 중단 구간) 1시간 전 예측을 할 수 없었던 시각입니다.")
     x = features(g, s, np.array([issue]), m["scale"][s])
     x = x[x["h"] == H]
     model = m["TOTAL"] if s == 0 else m["CHANNEL"]

@@ -19,6 +19,13 @@ window.PG = window.PG || {};
   PG.api = async (path, opt) => {
     if (PG.STATIC) {
       if (path in PG.STATIC.api) return PG.STATIC.api[path];
+      const m = path.match(/^api\/replay\?date=([\d-]+)&model=(.+)$/);     // 재생 자료: 날마다 실측 + 모델별 예측을 합침
+      const day = m && PG.STATIC.replay[m[1]], mo = day && day.models[decodeURIComponent(m[2])];
+      if (mo) {
+        const at = Object.fromEntries(mo.t.map((t, k) => [t, k]));
+        const frames = day.frames.filter((f) => f.t in at).map((f) => ({ ...f, pred: mo.pred[at[f.t]], proom: mo.proom[at[f.t]] }));
+        return { ...day, ...mo, frames, models: undefined };
+      }
       throw new Error('시연용 파일에는 이 자료가 없습니다 (서버 실행 시 가능)');
     }
     const r = await fetch(path, opt);

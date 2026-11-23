@@ -20,12 +20,12 @@
   S.init = async () => {
     const meta = await PG.api('api/days');
     S.families = meta.families; S.methods = meta.methods;
-    const want = QS.get('model') || meta.default_model;
+    const want = QS.get('model') || (PG.STATIC && PG.STATIC.model) || meta.default_model;
     const fam = meta.families.find((f) => f.direct === want || f.sum === want) || meta.families[0];
     const method = meta.families.some((f) => f.sum === want) ? 'sum' : (QS.get('model') ? 'direct' : meta.default_method);
     meta.methods.forEach((m) => $('#method').add(new Option(m.name, m.id, false, m.id === method)));
     meta.families.forEach((f) => $('#family').add(new Option(f.name, f.family, false, f.family === fam.family)));
-    const date = QS.get('date') || (meta.days.find((d) => d.date === '2026-10-28') || meta.days[meta.days.length - 1]).date;
+    const date = QS.get('date') || (meta.days.find((d) => d.date === ((PG.STATIC && PG.STATIC.date) || '2026-10-28')) || meta.days[meta.days.length - 1]).date;
     meta.days.forEach((d) => $('#dsel').add(new Option(d.date, d.date, false, d.date === date)));
     const go = () => { location.href = location.pathname + '?date=' + $('#dsel').value + '&model=' + encodeURIComponent(S.modelId()) + location.hash; };
     ['#method', '#family', '#dsel'].forEach((s) => { $(s).onchange = () => (S.live ? S.goLive() : go()); });
