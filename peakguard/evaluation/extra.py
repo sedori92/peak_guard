@@ -16,7 +16,7 @@ from functools import lru_cache
 import numpy as np
 import pandas as pd
 
-from ..config import ALERT_RATIO, BASE_DAY, DISPLAY, FAMILIES, H, MODEL_DIR, METHODS
+from ..config import ALERT_RATIO, BASE_DAY, DISPLAY, FAMILIES, H, MODEL_DIR, METHODS, MODELS
 
 
 @lru_cache(maxsize=1)
@@ -27,6 +27,7 @@ def _load():
     fc = q("SELECT model_name, issued_at, horizon_min, predicted_kw FROM st_forecast WHERE series_id='TOTAL'")
     fc["issued_at"] = pd.to_datetime(fc.issued_at)
     P = {m: d.pivot(index="issued_at", columns="horizon_min", values="predicted_kw") for m, d in fc.groupby("model_name")}
+    P = {m: P[m] for m in MODELS if m in P}              # 화면 순서: 기준모델 → 합산 후 예측 4종 → 예측 후 합산 4종
     iss = pd.DatetimeIndex(sorted(set.intersection(*[set(p.dropna().index) for p in P.values()])))
     tot = pd.Series(g.y[0], index=g.times)
     A = np.stack([tot.reindex(iss + pd.Timedelta(minutes=15 * h)).to_numpy() for h in range(1, H + 1)], 1)

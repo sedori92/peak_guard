@@ -84,7 +84,7 @@ def tuning_doc() -> None:
     for m, R in T["models"].items():
         rows = R["rows"]
         best = min(r["val_mae"] for r in rows)
-        L += [f"## {NAME.get(m, m)} — {R['decision']} (최선 대비 현재 {R['gain_pct']}% 차이)", "",
+        L += [f"## {NAME.get(m, m)} — {R['decision']} (처음 설정 대비 검증 MAE {R['gain_pct']}% 감소 가능)", "",
               "| 설정 | 검증 MAE | 맞힘 | 놓침 | 헛경보 |", "|---|---|---|---|---|"]
         for r in rows:
             cfg = ", ".join(f"{KEY.get(k, k)} {v}" for k, v in r["cfg"].items())
@@ -93,6 +93,12 @@ def tuning_doc() -> None:
         L.append("")
     if T.get("note"):
         L += ["## 결과 정리", "", T["note"], ""]
+    if T.get("before_after"):
+        L += ["## 교체 전후 시험기간 결과 (채널별 합산 후 예측, 피크 기준 최근 30일)", "",
+              "| 모델 | 시험 MAE 전 → 후 | 맞힘 전 → 후 | 헛경보 전 → 후 | 놓침 전 → 후 |", "|---|---|---|---|---|"]
+        for m, r in T["before_after"].items():
+            L.append(f"| {NAME.get(m, m)} | {r['mae'][0]:.3f} → {r['mae'][1]:.3f} | {r['tp'][0]} → {r['tp'][1]} | {r['fp'][0]} → {r['fp'][1]} | {r['fn'][0]} → {r['fn'][1]} |")
+        L.append("")
     out = ROOT / "docs" / "TUNING.md"
     out.write_text("\n".join(L) + "\n", encoding="utf-8")
     print(f"저장: {out}")

@@ -164,7 +164,7 @@ def run(skip_lstm: bool = False, compare: bool = False) -> None:
         cm = {s: np.all([~np.isnan(P[m][s]) for m in models if s in P[m]], axis=0) & ~np.isnan(A[s]) for s in range(S)}
         actual[k], common[k] = A, cm
         t_s, t_e = f"{g.times[split[k][0]]:%Y-%m-%d %H:%M}", f"{g.times[split[k][-1]]:%Y-%m-%d %H:%M}"
-        day_thr = thr["threshold_kw"].reindex([d.date().isoformat() for d in g.times[split[k]]]).to_numpy()
+        day_thr = thr["threshold_kw"].reindex([d.date().isoformat() for d in g.times[split[k]]]).to_numpy().round(2)   # 화면에 쓰는 기준값(소수 둘째 자리)과 같게
         for m in models:
             for scope, ss, low in (("TOTAL", [0], MAPE_MIN_TOTAL_KW), ("CHANNEL", range(1, S), MAPE_MIN_CHANNEL_KW)):
                 if scope == "CHANNEL" and m in SUM_BASE:
