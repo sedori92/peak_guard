@@ -23,7 +23,7 @@ window.PG = window.PG || {};
       const day = m && PG.STATIC.replay[m[1]], mo = day && day.models[decodeURIComponent(m[2])];
       if (mo) {
         const at = Object.fromEntries(mo.t.map((t, k) => [t, k]));
-        const frames = day.frames.filter((f) => f.t in at).map((f) => ({ ...f, pred: mo.pred[at[f.t]], proom: mo.proom[at[f.t]] }));
+        const frames = day.frames.filter((f) => f.t in at).map((f) => ({ ...f, pred: mo.pred[at[f.t]], proom: mo.proom[at[f.t]], rp: mo.rp && mo.rp[at[f.t]] }));
         return { ...day, ...mo, frames, models: undefined };
       }
       throw new Error('시연용 파일에는 이 자료가 없습니다 (서버 실행 시 가능)');
