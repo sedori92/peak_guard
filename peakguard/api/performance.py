@@ -5,7 +5,7 @@
 피크 기준점(첫 화면 '피크 기준' 콤보박스와 같은 다섯 가지)에 따라 오분류표를 다시 판정합니다
 (evaluation/peak_by_threshold.py). 예측 오차 표는 기준과 상관없이 같습니다.
 
-화면 위쪽 '채널별 예측 후 합산', 아래쪽 '채널별 합산 후 예측' 두 묶음을 돌려줍니다.
+화면 위쪽 '채널별 합산 후 예측'(기업 권장), 아래쪽 '채널별 예측 후 합산' 두 묶음을 돌려줍니다.
 두 묶음 모두 같은 시험기간·같은 예측 시점(공통 표본)에서 건물 합계 실측과 비교한 결과입니다.
   - 모델 성능 표 : MAE·RMSE·MAPE·편향, 15·30·45·60분 MAE, 전일 동일시각(기업 기준모델) 대비 개선율, 검증 MAE
   - 피크 경보 오분류표 : 맞힘·놓침·헛경보·정상, 오분류율, 재현율(실제 위험 중 맞힌 비율), 정밀도
@@ -56,7 +56,7 @@ def performance(thr: str = Query("recent30", pattern="^(recent30|prev_month|this
            "thr": {"key": thr, "name": NAMES[thr], "n": sel["n"], "actual_risk": sel["actual_risk"],
                    "kw_min": min(vals) if vals else None, "kw_max": max(vals) if vals else None},
            "thr_options": [{"key": k, "name": NAMES[k], "n": pt[k]["n"], "actual_risk": pt[k]["actual_risk"]} for k in KEYS]}
-    for key in ("sum", "direct"):                                # 화면 위: 예측 후 합산, 아래: 합산 후 예측
+    for key in ("direct", "sum"):                                # 화면 위: 합산 후 예측(기업 권장), 아래: 예측 후 합산
         rows = [base] + [_row(ev, pk, f[3] if key == "sum" else f[2]) for f in FAMILIES]
         rows = [r for r in rows if r]
         for r in rows:

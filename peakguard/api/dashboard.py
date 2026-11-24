@@ -154,7 +154,16 @@ def replay(date: str = Query(..., description="YYYY-MM-DD"), model: str = "Light
             "frames": frames, "imp": inf["importance"], "perf": perf, "peak": peak, "floors": FLOORS,
             "test_start": inf["test_start"], "test_end": inf["test_end"], "splits": inf.get("splits"),
             "thr_method": "직전 30일 전체 합산 15분 수요전력 P95",
-            "thr_options": thr_options(date)}
+            "thr_options": thr_options(date), "peak_now": peak_now(date)}
+
+
+def peak_now(date: str) -> dict:
+    """상태 띠 맨 앞 '현재 피크' (한전 방식 최대수요전력, models/thresholds.py)."""
+    from ..live.predictor import grid
+    from ..models.thresholds import current_peak
+    from .common import engine
+    g = grid(engine)
+    return current_peak(pd.Series(g.y[0], index=g.times), date)
 
 
 def thr_options(date: str) -> dict:

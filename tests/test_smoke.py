@@ -114,9 +114,9 @@ def test_split_and_models(day):
 
 
 def test_performance_screen():
-    """세 번째 화면: 위 '채널별 예측 후 합산' / 아래 '채널별 합산 후 예측', 재현율·경보 없음 줄."""
+    """세 번째 화면: 위 '채널별 합산 후 예측' / 아래 '채널별 예측 후 합산', 재현율·경보 없음 줄."""
     p = client.get("/api/performance").json()
-    assert [s["key"] for s in p["sections"]] == ["sum", "direct"]
+    assert [s["key"] for s in p["sections"]] == ["direct", "sum"]
     for s in p["sections"]:
         assert [r["name"] for r in s["rows"]] == ["전일 동일시각", "LightGBM", "XGBoost", "Random Forest", "Bi-LSTM"]
         na = s["no_alarm"]
@@ -125,7 +125,7 @@ def test_performance_screen():
         assert s["best_recall"] == best["id"]
     # 피크 기준점별: 최근 30일 = 학습 때 저장한 오분류표와 같아야 함, 다른 기준도 계산됨
     e = {r["model_name"]: r for r in client.get("/api/eval").json()["peak_detection"] if r["split"] == "test"}
-    assert all(r["peak"]["tp"] == e[r["id"]]["tp"] and r["peak"]["fp"] == e[r["id"]]["fp"] for r in p["sections"][1]["rows"])
+    assert all(r["peak"]["tp"] == e[r["id"]]["tp"] and r["peak"]["fp"] == e[r["id"]]["fp"] for r in p["sections"][0]["rows"])
     for k in ("prev_month", "this_month", "summer"):
         q = client.get("/api/performance", params={"thr": k}).json()
         assert q["thr"]["key"] == k and q["thr"]["n"] > 0

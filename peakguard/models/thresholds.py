@@ -54,3 +54,23 @@ def options(total: pd.Series, day) -> dict:
                   "period": f"{a:%Y-%m-%d} ~ {last:%Y-%m-%d}" if b > a else "—", "days": round(len(w) / DAY, 1),
                   "note": None if ok else ("자료 없음 (2026-07-01부터 수집)" if len(w) == 0 else f"자료 부족 ({len(w) / DAY:.1f}일치)")}
     return out
+
+
+def current_peak(total: pd.Series, day) -> dict:
+    """상태 띠 맨 앞 '현재 피크' — 한전 요금적용전력 방식의 최대수요전력 (15분 수요전력 중 가장 높은 값 하나).
+
+    검침 당월을 포함한 직전 12개월 중 여름(7·8·9월)·겨울(12·1·2월)과 당월의 15분 최대수요전력 중 가장 큰 값.
+    여기서는 기준일 전날까지 실측으로 계산하고, 화면에서 오늘 실측이 이 값을 넘으면 그 값으로 바꿔 보여 줍니다.
+    (주의: 한전 요금은 한전과 계약한 수전 단위로 정해짐. 이 값은 96개 채널 합계 = 이 건물 기준)
+    """
+    day = pd.Timestamp(day).normalize()
+    m1 = day.replace(day=1)
+    w = total[(total.index >= m1 - pd.DateOffset(months=11)) & (total.index < day)].dropna()
+    pick = w[w.index.month.isin([7, 8, 9, 12, 1, 2]) | (w.index >= m1)]
+    if pick.empty:
+        return {"kw": None, "time": None, "basis": "자료 없음"}
+    t = pick.idxmax()
+    months = sorted({(x.year, x.month) for x in pick.index})
+    has_winter = any(m in (12, 1, 2) for _, m in months)
+    return {"kw": round(float(pick.max()), 2), "time": f"{t:%Y-%m-%d %H:%M}", "month": f"{t.month}월",
+            "basis": "직전 12개월 7~9월·12~2월·당월 최대" + ("" if has_winter else " (12~2월 자료 없음)")}

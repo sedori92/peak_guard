@@ -64,6 +64,8 @@ def export(date: str = "2026-10-28", model: str = DEFAULT_MODEL, out: str | None
             r = build(p, d)
             r.pop("series", None)
             api[f"api/report/peaks?period={p}&date={d}"] = r
+            if r["records"]:                                               # [스프레드시트 보기·출력] 미리보기 (15분 기록은 앞 100줄)
+                api[f"api/report/preview?period={p}&date={d}"] = history.report_preview(p, d, 100)
             times |= {x["peak_time"] for x in r["records"]}
             if r["records"]:
                 peaks.add(r["summary"]["peak_time"])

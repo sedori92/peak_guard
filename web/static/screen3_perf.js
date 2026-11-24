@@ -1,6 +1,6 @@
 // [6] 세 번째 화면 '모델성능 및 오경보율 비교' (Front-end 담당)
-//   위 구역  : 채널별 예측 후 합산   (채널 61개를 각각 예측해 더한 건물 합계)
-//   아래 구역: 채널별 합산 후 예측   (96개 채널을 먼저 더한 건물 합계를 바로 예측)
+//   위 구역  : 채널별 합산 후 예측   (96개 채널을 먼저 더한 건물 합계를 바로 예측, 기업 권장)
+//   아래 구역: 채널별 예측 후 합산   (채널 61개를 각각 예측해 더한 건물 합계)
 //   각 구역  : ① 예측 오차 표 (전일 동일시각 · LightGBM · XGBoost · Random Forest · Bi-LSTM)
 //              ② 피크경보 오분류표 (모델 고르기 → 맞힘·놓침·헛경보·정상) + 재현율 비교표 (+ '경보 없음' 비교용 줄)
 //   맨 위 '피크 기준' 콤보박스: 최근 30일·전월·당월·7~9월·12~2월 95번째 백분위수 → 오분류표를 그 기준으로 다시 판정
@@ -21,10 +21,10 @@
     const sel = $('#pthrsel'); sel.replaceChildren();
     D.thr_options.forEach((o) => { const op = new Option(`${o.name} 95번째 백분위수` + (o.n ? '' : ' — 자료 없음'), o.key, false, o.key === key); op.disabled = !o.n; sel.add(op); });
     sel.onchange = () => { PG.S1.setThr(sel.value); P3.show(true); };
-    $('#pthrinfo').textContent = T.n ? `기준값 ${T.kw_min === T.kw_max ? fmt(T.kw_min, 2) : fmt(T.kw_min, 2) + ' ~ ' + fmt(T.kw_max, 2)} kW · 비교 발행 ${T.n.toLocaleString()}개 · 실제 피크 위험 ${T.actual_risk}건` : '이 기준은 계산할 자료가 없습니다';
+    $('#pthrinfo').textContent = T.n ? `기준값 ${T.kw_min === T.kw_max ? fmt(T.kw_min, 2) : fmt(T.kw_min, 2) + ' ~ ' + fmt(T.kw_max, 2)} kW · 비교한 예측 시점 ${T.n.toLocaleString()}개 · 실제 피크 위험 ${T.actual_risk}건` : '이 기준은 계산할 자료가 없습니다';
     $('#perfnote').textContent = `시험기간 ${D.test[0]} ~ ${D.test[1]} (학습·검증에 쓰지 않은 기간)의 실측과 비교. ` +
       (sp.train ? `학습 ${sp.train[0].slice(0, 10)}~${sp.train[1].slice(0, 10)} · 검증 ${sp.val[0].slice(0, 10)}~${sp.val[1].slice(0, 10)} · ` : '') +
-      `모든 모델은 같은 발행 시각에서 비교(공통 표본). 피크 위험 = 다음 1시간 4칸 중 하나라도 그날 '${T.name}' 기준 이상. 기준을 바꾸면 ② 오분류표만 바뀌고 ① 예측 오차는 같습니다.` +
+      `모든 모델은 같은 예측 시점에서 비교(공통 표본). 피크 위험 = 다음 1시간 4칸 중 하나라도 그날 '${T.name}' 기준 이상. 기준을 바꾸면 ② 오분류표만 바뀌고 ① 예측 오차는 같습니다.` +
       (T.n && !T.actual_risk ? ` ※ 시험기간에 '${T.name}' 기준을 넘은 적이 없어 재현율을 계산할 수 없습니다(헛경보만 비교).` : '');
     const box = $('#perfsections'); box.replaceChildren();
     D.sections.forEach((s) => box.append(section(s)));

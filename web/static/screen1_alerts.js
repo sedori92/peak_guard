@@ -43,7 +43,7 @@
       item(r.c, S1.roomName(r.c), `${fmt(r.p, 2)} kW · ${r.pct == null ? '기준 없음' : fmt(r.pct, 0) + '%'} · 연락처 ${nc ? nc + '명' : '없음'}`, r.pct >= 100);
     });
     $('#almore').textContent = A.expanded ? '접기' : `더보기 (${rows.length - SHOW}개 호실 더)`;
-    $('#alsub').textContent = `${f.t} 발행 · 예상 피크 ${s.at}`;
+    $('#alsub').textContent = `${f.t}에 예측 · 예상 피크 ${s.at}`;
     updCount();
   }
   const chosen = () => Object.keys(A.checked).filter((k) => A.checked[k] && k !== 'COMMON');

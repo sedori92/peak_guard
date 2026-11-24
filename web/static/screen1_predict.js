@@ -89,12 +89,22 @@
     const sm = document.createElement('small');
     sm.textContent = s.lvl === 'bad' ? `먼저 점검할 호실: ${S.topRooms(f, 3).map((r) => roomName(r[0])).join(', ')} → 오른쪽 '경보발령 선택'에서 발령` : `다음 갱신 ${addMin(f.t, 15)}`;
     msg.append(line, sm);
-    $('#thr').textContent = f.thr == null ? '—' : fmt(f.thr, 2) + ' kW';
+    if (f.thr == null) $('#thr').textContent = '—'; else setv('#thr', fmt(f.thr, 2), 'kW');
     const o = S.thrOpts[S.thrKey];
     $('#thrnote').textContent = o ? `${o.period} · ${o.days}일치` + (S.thrKey === 'recent30' && f.thr_note ? ` (${f.thr_note})` : '') : (f.thr_note || '');
   }
   const setv = (sel, v, u) => { const e = $(sel); if (e.dataset.v !== v) { e.dataset.v = v; e.replaceChildren(document.createTextNode(v), Object.assign(document.createElement('small'), { textContent: u })); e.classList.remove('flash'); void e.offsetWidth; e.classList.add('flash'); } };
-  // 상태 띠 가운데: 현재 수요전력 (직전 15분 평균, 96개 계측채널 합산)
+  // 상태 띠 ① 현재 피크: 한전 방식 최대수요전력(전날까지) — 오늘 실측이 넘으면 오늘 값으로
+  function drawPeak(f) {
+    const base = S.live ? S.live.frame.peak_now : S.DATA.peak_now;
+    if (!base || base.kw == null) { $('#pk').textContent = '—'; $('#pks').textContent = '자료 없음'; return; }
+    let kw = base.kw, when = base.time, note = base.basis;
+    S.history().forEach((x) => { if (x.y != null && x.y > kw) { kw = x.y; when = `${S.live ? S.live.frame.date : S.DATA.date} ${x.t}`; note = '오늘 새 최대'; } });
+    setv('#pk', fmt(kw, 2), 'kW');
+    $('#pks').textContent = `${when.slice(5)} · ${note}`;
+    $('#status').classList.toggle('newpeak', note === '오늘 새 최대');
+  }
+  // 상태 띠 ④: 현재 수요전력 (직전 15분 평균, 96개 계측채널 합산)
   function drawKpi(f) {
     setv('#k1', fmt(f.y, 2), 'kW');
     $('#k1s').textContent = `${f.t} 기준 · 96개 계측채널 합산` + (f.thr ? ` · 기준의 ${fmt(f.y / f.thr * 100, 0)}%` : '');
@@ -206,7 +216,7 @@
       n.title = `예측 ${fmt(r.p, 2)} kW / 호실 기준 ${fmt(r.thr, 2)} kW`;
       row.append(nm, bar, n); box.append(row);
     });
-    $('#pbt').textContent = `${f.t} 발행 · 다음 1시간 · ${S.live ? S.live.model : S.DATA.model}`;
+    $('#pbt').textContent = `${f.t}에 예측 · 다음 1시간 · ${S.live ? S.live.model : S.DATA.model}`;
   }
 
   // ---------- 그리기 · 재생 ----------
@@ -214,7 +224,7 @@
     if (!S.F.length && !S.live) return;
     const f = S.frame(), s = S.state(f);
     $('#clk').textContent = S.live ? S.live.frame.time : S.DATA.day + ' ' + f.t;
-    drawStatus(f, s); drawKpi(f);
+    drawStatus(f, s); drawKpi(f); drawPeak(f);
     if (!$('#s-predict').hidden) { drawShare(f); drawChart(f); drawTop5(f, s); drawPossibility(f, s); (PG.onFrame || []).forEach((fn) => fn(f, s)); }
   };
   function tick() {
@@ -266,7 +276,56 @@
       S.render();
     } catch (e) { bar.hidden = false; bar.textContent = '실시간 연결 실패: ' + e.message; }
   };
-  $('#golive').addEventListener('click', () => S.goLive());
+  // [실시간 연결] 버튼 → 빠진 자료가 있으면 먼저 물어봄
+  //   ① 파일 끌어다놓기 : 기업에서 받은 CSV를 올려 빠진 기간 채움 → 실시간 연결 → 현재 시각으로 표시
+  //   ② 바로 연결     : 기업 API(DB)에서 빠진 기간을 받아 채움 → 실시간 연결 → 현재 시각으로 표시
+  const P = (t, cls) => Object.assign(document.createElement('p'), { textContent: t, className: cls || '' });
+  function uploadDialog() {
+    const zone = document.createElement('div'); zone.className = 'dropzone'; zone.tabIndex = 0;
+    zone.textContent = '여기에 전력 CSV 파일을 끌어다 놓거나 눌러서 고르세요 (여러 개 가능)';
+    const input = Object.assign(document.createElement('input'), { type: 'file', accept: '.csv', multiple: true, hidden: true });
+    const log = document.createElement('div'); log.className = 'uplog';
+    let total = 0;
+    const send = async (files) => {
+      for (const f of files) {
+        const line = P(`${f.name} 올리는 중…`); log.append(line);
+        try {
+          const fd = new FormData(); fd.append('file', f);
+          const r = await PG.api('api/upload', { method: 'POST', body: fd });
+          total += r.inserted || 0;
+          line.textContent = `${f.name} — 새로 넣음 ${(r.inserted || 0).toLocaleString()}건 · 중복 건너뜀 ${(r.duplicates || 0).toLocaleString()}건`;
+        } catch (e) { line.textContent = `${f.name} — 실패: ${e.message}`; line.className = 'note err'; }
+      }
+    };
+    zone.onclick = () => input.click();
+    input.onchange = () => send(input.files);
+    zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('over'); };
+    zone.ondragleave = () => zone.classList.remove('over');
+    zone.ondrop = (e) => { e.preventDefault(); zone.classList.remove('over'); send(e.dataTransfer.files); };
+    PG.dialog('파일 끌어다놓기 — 빠진 기간 자료 올리기', [zone, input, log, P('같은 채널·시각은 한 번만 들어갑니다(여러 번 올려도 중복 없음). 빠진 기간을 가짜 값으로 채우지 않습니다.', 'note')],
+      [['실시간 연결', () => { S.goLive(); }, 'primary'], ['취소']]);
+  }
+  async function directConnect() {
+    const st = await PG.api('api/live/status');
+    if (!st.api_configured) {
+      PG.dialog('바로 연결', [P('기업 API(DB) 연결 정보가 아직 설정되지 않았습니다.'), P('.env 파일의 LIVE_DB_URL · LIVE_DB_QUERY 에 기업이 준 연결 정보를 넣으면 이 버튼으로 바로 받아 옵니다. 지금은 파일로 올리거나, 마지막 실측 기준으로만 연결할 수 있습니다.', 'note')],
+        [['파일 끌어다놓기', () => { setTimeout(uploadDialog, 0); }], ['마지막 실측 기준으로 연결', () => { S.goLive(); }, 'primary'], ['취소']]);
+      return;
+    }
+    S.goLive();
+  }
+  $('#golive').addEventListener('click', async () => {
+    if (S.live) { S.goLive(); return; }
+    let st;
+    try { st = await PG.api('api/live/status'); } catch (e) { S.goLive(); return; }
+    if (!st.missing_slots_to_now || st.missing_slots_to_now <= 1) { S.goLive(); return; }
+    const next = st.last_measured ? PG.addMin(st.last_measured.slice(11, 16), 15) : '';
+    PG.dialog('실시간 연결', [
+      P(`${st.last_measured} 이후 자료가 없습니다. (빠진 첫 칸 ${next})`),
+      P(`현재(${st.now})까지 빠진 15분 칸 ${st.missing_slots_to_now.toLocaleString()}개 — 자료를 업데이트하시겠습니까?`),
+      P('파일 끌어다놓기: 기업에서 받은 CSV를 올린 뒤 실시간 연결 · 바로 연결: 기업 API로 받아 온 뒤 실시간 연결', 'note'),
+    ], [['파일 끌어다놓기', () => { setTimeout(uploadDialog, 0); }], ['바로 연결', () => { setTimeout(directConnect, 0); }, 'primary'], ['취소']]);
+  });
   if (PG.STATIC) { $('#golive').disabled = true; $('#golive').title = '시연용 파일에서는 실시간 연결을 할 수 없습니다 (서버 실행 시 가능)'; }
   PG.onTheme.push(() => S.render());
 })();

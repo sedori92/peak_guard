@@ -9,6 +9,8 @@
 """
 from __future__ import annotations
 
+import os
+
 import pandas as pd
 from fastapi import APIRouter, HTTPException
 
@@ -25,7 +27,8 @@ def status():
     now = pd.Timestamp.now().floor("15min")
     return {"last_measured": last, "now": f"{now:%Y-%m-%d %H:%M}",
             "missing_slots_to_now": int((now - pd.Timestamp(last)) / pd.Timedelta("15min")) if last else None,
-            "incoming_folder": "data/incoming", "waiting_files": sorted(p.name for p in INCOMING.glob("*.csv"))}
+            "incoming_folder": "data/incoming", "waiting_files": sorted(p.name for p in INCOMING.glob("*.csv")),
+            "api_configured": bool(os.getenv("LIVE_DB_URL") and os.getenv("LIVE_DB_QUERY"))}   # 기업 API(DB) 연결 설정 여부
 
 
 @router.post("/sync")

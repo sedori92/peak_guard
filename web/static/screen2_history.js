@@ -32,9 +32,7 @@
 
   // ---------- 상단: 최고관리자 보고서 ----------
   async function loadReport() {
-    const d = $('#repdate').value, dl = $('#repdl');
-    if (PG.STATIC) { dl.removeAttribute('href'); dl.title = '시연용 파일에서는 내려받기를 할 수 없습니다 (서버 실행 시 가능)'; }
-    else dl.href = `api/report/xlsx?period=${H2.period}&date=${d}`;
+    const d = $('#repdate').value;
     let r = null;
     try { r = await PG.api(key(H2.period, d)); } catch (e) { r = null; $('#repinfo').textContent = e.message; }
     const rec = $('#reprec'), tp = $('#reptop'); rec.replaceChildren(); tp.replaceChildren();
@@ -53,13 +51,53 @@
       tr.dataset.t = x.peak_time; tr.tabIndex = 0; tr.title = '눌러서 아래 배치도·영향요인을 이 피크 시각으로';
       tr.onclick = () => pick(x.peak_time); tr.onkeydown = (e) => { if (e.key === 'Enter') pick(x.peak_time); };
     });
-    row(tp, ['순위', '채널', '구분', 'kW', '건물 대비', '호실 대비'], true);
+    row(tp, ['순위', '채널', '구분', 'kW', '건물 합계(96채널) 대비', '호실 34개 합계 대비'], true);
     r.top10.forEach((x) => {
       const tr = row(tp, [x.rank, x.name, x.kind, fmt(x.kw, 2), fmt(x.share_building, 1) + '%', x.share_rooms != null ? fmt(x.share_rooms, 1) + '%' : '—']);
       if (x.kind === '호실' && x.channel) { tr.classList.add('link'); tr.onclick = () => { $('#fsel').value = x.channel.replace('-CH', '-'); loadFactors(); }; }
     });
     pick(sm.peak_time);
   }
+
+  // ---------- [스프레드시트 보기·출력]: 내려받을 .xlsx 를 화면에 시트별로 보여 주고 내려받기·출력 ----------
+  //   출력: 서버 컴퓨터에 연결된 프린터를 확인 → 없으면 '프린터 연결 안 됨', 있으면 인쇄 창 열기
+  const mk = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+  async function showSheet() {
+    const d = $('#repdate').value, q = `period=${H2.period}&date=${d}`;
+    let pv;
+    try { pv = await PG.api(`api/report/preview?${q}`); } catch (e) { $('#repinfo').textContent = e.message; return; }
+    const tabs = mk('div', 'seg sheettabs'), body = mk('div', 'sheetbody'), msg = mk('p', 'note');
+    const show = (k) => {
+      tabs.querySelectorAll('button').forEach((b, j) => b.setAttribute('aria-pressed', j === k ? 'true' : 'false'));
+      const sh = pv.sheets[k], t = mk('table', 'perf sheet');
+      sh.rows.forEach((row, i) => { const tr = mk('tr'); row.forEach((v) => tr.append(mk(i === 0 && k > 0 ? 'th' : 'td', null, v))); t.append(tr); });
+      body.replaceChildren(t);
+      if (sh.total_rows > sh.rows.length) body.append(mk('p', 'note', `화면에는 앞 ${sh.rows.length}줄만 보입니다 (전체 ${sh.total_rows.toLocaleString()}줄은 내려받은 파일에 있음).`));
+    };
+    pv.sheets.forEach((sh, k) => { const b = mk('button', null, sh.name); b.type = 'button'; b.onclick = () => show(k); tabs.append(b); });
+    show(0);
+    const head = mk('p', 'note', `${pv.period} · 파일 이름 ${pv.filename}`);
+    PG.dialog(pv.title, [head, tabs, body, msg], [
+      ['내려받기 (.xlsx)', () => {
+        if (PG.STATIC) { msg.textContent = '시연용 파일에서는 내려받기를 할 수 없습니다 (서버 실행 시 가능).'; return true; }
+        const a = mk('a'); a.href = `api/report/xlsx?${q}`; a.download = pv.filename; document.body.append(a); a.click(); a.remove(); return true;
+      }],
+      ['출력', async () => {
+        if (!PG.STATIC) {
+          let pr = { available: false };
+          try { pr = await PG.api('api/printer'); } catch (e) { /* 확인 실패 = 연결 안 됨 */ }
+          if (!pr.available) { msg.className = 'note err'; msg.textContent = '프린터 연결 안 됨 — 프린터를 켜고 연결한 뒤 다시 누르세요. (내려받은 파일을 다른 컴퓨터에서 인쇄해도 됩니다)'; return true; }
+          msg.className = 'note'; msg.textContent = `프린터: ${pr.default || pr.printers[0]} — 인쇄 창을 엽니다.`;
+        }
+        document.body.classList.add('printing-sheet'); window.print(); document.body.classList.remove('printing-sheet');
+        return true;
+      }, 'primary'],
+      ['닫기'],
+    ]);
+    $('#dlg').classList.add('wide');
+    $('#dlg').addEventListener('close', () => $('#dlg').classList.remove('wide'), { once: true });
+  }
+  $('#repdl').addEventListener('click', showSheet);
 
   // 피크 시각 고르기 → 배치도·영향요인 갱신
   async function pick(t) {
@@ -112,7 +150,7 @@
     if (H2.snap) document.querySelectorAll('#plan .tile').forEach((t) => t.classList.remove('sel'));
   }
   function drawFactors(r) {
-    $('#fct').textContent = `${r.label} · ${r.issued_at.slice(11)} 발행 → ${r.time.slice(11)} 예측 ${fmt(r.pred_kw, 2)} kW / 실측 ${fmt(r.actual_kw, 2)} kW`;
+    $('#fct').textContent = `${r.label} · ${r.issued_at.slice(11)}에 예측한 ${r.time.slice(11)} 값 ${fmt(r.pred_kw, 2)} kW / 실측 ${fmt(r.actual_kw, 2)} kW`;
     const svg = $('#fchart'); svg.replaceChildren();
     const items = r.items.slice(0, 8), rest = r.pred_kw - r.base_kw - items.reduce((a, x) => a + x.kw, 0);
     const rows = [['평균 예측값', r.base_kw, 'base'], ...items.map((x) => [x.name, x.kw, 'c']), ['그 밖의 입력값', rest, 'c'], ['1시간 전 예측', r.pred_kw, 'end']];

@@ -46,6 +46,54 @@ def report_xlsx(period: str = Query("week", pattern=PERIOD), date: str = Query(.
                     headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename(r))}"})
 
 
+@router.get("/report/preview")
+def report_preview(period: str = Query("week", pattern=PERIOD), date: str = Query(..., description="YYYY-MM-DD"),
+                   max_rows: int = 300):
+    """[스프레드시트 보기] 버튼: 내려받을 .xlsx 를 그대로 읽어 시트별 표로 돌려줌 (화면 미리보기·출력용)."""
+    import io
+
+    from openpyxl import load_workbook
+
+    from ..reports.executive import build, filename, to_xlsx
+    r = build(period, date)
+    if not r["records"]:
+        raise HTTPException(404, f"{r['start']}~{r['end']} 기간에 96개 채널이 모두 수신된 데이터가 없습니다.")
+    wb = load_workbook(io.BytesIO(to_xlsx(r)), data_only=True)
+    sheets = []
+    for ws in wb.worksheets:
+        rows = []
+        for row in ws.iter_rows(values_only=True):
+            if all(v is None for v in row):
+                continue
+            rows.append(["" if v is None else (round(v, 2) if isinstance(v, float) else str(v)) for v in row])
+        sheets.append({"name": ws.title, "rows": rows[:max_rows], "total_rows": len(rows)})
+    return {"title": f"피크가드 {r['title']} 피크 보고서", "period": f"{r['start']} ~ {r['end']}",
+            "filename": filename(r), "sheets": sheets}
+
+
+@router.get("/printer")
+def printer():
+    """[출력] 버튼: 이 서버 컴퓨터에 연결된 프린터 확인 (Windows: Get-Printer, macOS·리눅스: lpstat)."""
+    import platform
+    import shutil
+    import subprocess
+    names, default = [], None
+    try:
+        if platform.system() == "Windows":
+            out = subprocess.run(["powershell", "-NoProfile", "-Command",
+                                  "Get-Printer | Where-Object {$_.PrinterStatus -ne 'Offline'} | Select-Object -ExpandProperty Name"],
+                                 capture_output=True, text=True, timeout=8).stdout
+            names = [x.strip() for x in out.splitlines() if x.strip() and "PDF" not in x and "XPS" not in x and "OneNote" not in x and "Fax" not in x]
+        elif shutil.which("lpstat"):
+            out = subprocess.run(["lpstat", "-p"], capture_output=True, text=True, timeout=8).stdout
+            names = [ln.split()[1] for ln in out.splitlines() if ln.startswith("printer ") and "disabled" not in ln]
+            d = subprocess.run(["lpstat", "-d"], capture_output=True, text=True, timeout=8).stdout
+            default = d.split(":")[-1].strip() if ":" in d else None
+    except Exception:            # 확인 실패 = 연결 안 됨으로 처리
+        names = []
+    return {"available": bool(names), "printers": names, "default": default}
+
+
 @router.get("/snapshot")
 def snapshot(time: str = Query(..., description="YYYY-MM-DD HH:MM")):
     """그 15분 칸의 96개 채널 실측과 건물·호실 대비 비중 (배치도용)."""
