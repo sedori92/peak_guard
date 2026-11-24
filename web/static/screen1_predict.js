@@ -154,7 +154,9 @@
     const H2 = 280, L = AX.L, R = AX.R, T = AX.T, B = AX.B;
     const { W: W2, x, X0 } = S.xAxis(svg, H2, tm(f.t));
     const top5 = S.topRooms(f).map((r) => r[0]), now = tm(f.t), pk = tm(s.at), hist = S.history().filter((h) => tm(h.t) >= X0);
-    const top = Math.max(0.2, ...top5.flatMap((c) => hist.map((x) => x.rooms[c] || 0).concat([f.proom[c] ?? 0]))) * 1.12, step = PG.niceStep(top);
+    // 호실별 다음 1시간 예측 4점 (15·30·45·60분) — 상단 건물 그래프와 같은 모양
+    const rp = (c) => (S.live ? S.live.frame.rooms_pred[c] : (f.rp && f.rp[c])) || [f.proom[c] ?? 0, f.proom[c] ?? 0, f.proom[c] ?? 0, f.proom[c] ?? 0];
+    const top = Math.max(0.2, ...top5.flatMap((c) => hist.map((x) => x.rooms[c] || 0).concat(rp(c)))) * 1.12, step = PG.niceStep(top);
     const y = (v) => T + (1 - v / top) * (H2 - T - B);
     PG.axisY(svg, y, top, L, R, W2, step, step < 1 ? 1 : 0);
     el('line', { x1: x(now), x2: x(now), y1: T, y2: H2 - B, stroke: css('--ink2'), 'stroke-dasharray': '2 3' }, svg);
@@ -165,16 +167,18 @@
       const flush = () => { if (seg.length > 1) el('polyline', { points: seg.join(' '), fill: 'none', stroke: col, 'stroke-width': k === 0 ? 2.6 : 1.8, 'stroke-linejoin': 'round' }, svg); seg = []; };
       hist.forEach((h) => { const m = tm(h.t); if (prev !== null && m - prev > 15) flush(); seg.push(x(m) + ',' + y(h.rooms[c] || 0)); prev = m; });
       flush();
-      const pv = f.proom[c];
-      if (pv != null) { el('line', { x1: x(now), y1: y(f.rooms[c] || 0), x2: x(pk), y2: y(pv), stroke: col, 'stroke-width': 1.8, 'stroke-dasharray': '5 4' }, svg); el('circle', { cx: x(pk), cy: y(pv), r: 4.5, fill: css('--panel'), stroke: col, 'stroke-width': 2 }, svg); }
-      labs.push([y(pv ?? f.rooms[c] ?? 0), col, (k + 1) + '. ' + roomName(c)]);
+      const pv = f.proom[c], ps = rp(c);
+      const pts = [[now, f.rooms[c] || 0], ...ps.map((v, h) => [now + 15 * (h + 1), v])];
+      el('polyline', { points: pts.map((q) => x(q[0]) + ',' + y(q[1])).join(' '), fill: 'none', stroke: col, 'stroke-width': 1.8, 'stroke-dasharray': '5 4' }, svg);
+      ps.forEach((v, h) => { const atPk = now + 15 * (h + 1) === pk; el('circle', { cx: x(now + 15 * (h + 1)), cy: y(v), r: atPk ? 4.5 : 3.2, fill: atPk ? col : css('--panel'), stroke: col, 'stroke-width': 2 }, svg); });
+      labs.push([y(ps[3]), col, (k + 1) + '. ' + roomName(c)]);
       const sp = document.createElement('span'), sw = document.createElement('i'); sw.className = 'sw'; sw.style.background = col; sw.style.height = '4px';
       sp.append(sw, `${k + 1}. ${roomName(c)} ${fmt(f.rooms[c] || 0, 2)} → ${fmt(pv ?? 0, 2)} kW`); leg.append(sp);
     });
     labs.sort((a, b2) => a[0] - b2[0]);
     for (let k = 1; k < labs.length; k++) labs[k][0] = Math.max(labs[k][0], labs[k - 1][0] + 14);   // 이름표 겹치지 않게
-    labs.forEach(([yy, col, t]) => { const lt = el('text', { x: x(pk) + 8, y: yy + 4, 'font-size': 11, fill: col, 'font-weight': 600 }, svg); lt.textContent = t; });
-    $('#t5t').textContent = `${f.t} 기준 · 예상 피크 ${s.at}`;
+    labs.forEach(([yy, col, t]) => { const lt = el('text', { x: x(now + 60) + 6, y: yy + 4, 'font-size': 11, fill: col, 'font-weight': 600 }, svg); lt.textContent = t; });
+    $('#t5t').textContent = `${f.t} 기준 · 점 4개 = 15·30·45·60분 뒤 예측 · 색칠한 점 = 건물 예상 피크 ${s.at}`;
   }
 
   // ---------- 호실별 피크 예측 가능성 ----------
@@ -182,23 +186,23 @@
     const thr = S.live ? S.live.frame.room_thr : S.roomThr;
     const tot = f.pred[s.k];
     return S.hos.map((c) => {
-      const p = S.live ? Math.max(...(S.live.frame.rooms_pred[c] || [0])) : (f.proom[c] ?? 0);
+      const p = f.proom[c] ?? 0;                   // 건물 예상 피크 시각의 그 호실 예측 kW (왼쪽 Top 5와 같은 기준)
       const pct = thr[c] ? p / thr[c] * 100 : null;
       return { c, p, pct, share: tot ? (f.proom[c] ?? 0) / tot * 100 : null, thr: thr[c] };
     });
   };
   function drawPossibility(f, s) {
-    const rows = S.possibility(f, s).filter((r) => r.thr).sort((a, b2) => b2.pct - a.pct).slice(0, 12);
+    // 순서·막대 = 예측 kW (큰 순, 왼쪽 Top 5와 같은 기준). % = 그 호실 평소(직전 30일 P95) 대비 — 참고 숫자
+    const rows = S.possibility(f, s).sort((a, b2) => b2.p - a.p).slice(0, 12);
     const box = $('#pbars'); box.replaceChildren();
-    const mx = Math.max(120, ...rows.map((r) => r.pct));
+    const mx = Math.max(0.1, ...rows.map((r) => r.p));
     rows.forEach((r) => {
       const row = document.createElement('div'); row.className = 'pbrow' + (r.pct >= 100 ? ' over' : '');
       const nm = document.createElement('span'); nm.textContent = roomName(r.c);
       const bar = document.createElement('span'); bar.className = 'pb';
-      const fill = document.createElement('i'); fill.style.width = Math.min(100, r.pct / mx * 100) + '%';
-      const mark = document.createElement('em'); mark.style.left = (100 / mx * 100) + '%'; mark.title = '호실 기준 100%';
-      bar.append(fill, mark);
-      const n = document.createElement('span'); n.className = 'n'; n.textContent = `${fmt(r.p, 2)} kW · ${fmt(r.pct, 0)}%`;
+      const fill = document.createElement('i'); fill.style.width = (r.p / mx * 100) + '%';
+      bar.append(fill);
+      const n = document.createElement('span'); n.className = 'n'; n.textContent = `${fmt(r.p, 2)} kW · 평소의 ${r.pct == null ? '—' : fmt(r.pct, 0) + '%'}`;
       n.title = `예측 ${fmt(r.p, 2)} kW / 호실 기준 ${fmt(r.thr, 2)} kW`;
       row.append(nm, bar, n); box.append(row);
     });

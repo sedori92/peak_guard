@@ -13,7 +13,7 @@ from pathlib import Path
 from ..config import DEFAULT_MODEL, REPORT_DIR, WEB_DIR
 
 SHARED = ("t", "y", "p", "temp", "thr", "rooms", "common")       # 모델과 상관없는 실측 (날마다 한 번만 저장)
-PER_MODEL = ("pred", "proom")                                    # 모델마다 다른 예측
+PER_MODEL = ("pred", "proom", "rp")                                    # 모델마다 다른 예측
 
 
 def export(date: str = "2026-10-28", model: str = DEFAULT_MODEL, out: str | None = None) -> Path:

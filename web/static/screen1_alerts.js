@@ -1,5 +1,5 @@
 // [6] 첫 번째 화면 '예측 및 경보' — 오른쪽 '경보발령 선택' 상자 (Front-end 담당)
-//   목록 순서 : 맨 위 '공용부분'(관리자의 최후 수단) → 그 아래 호실 34개 (피크 예측 가능성 높은 순)
+//   목록 순서 : 맨 위 '공용부분'(관리자의 최후 수단) → 그 아래 호실 34개 (예측 kW 큰 순 = 왼쪽 Top 5와 같은 순서)
 //   처음엔 Top 5 호실에 체크, 관리자가 직접 바꾼 체크는 15분마다 다시 골라도 그대로 둠
 //   [더보기]     : 34개 호실 전부 펼치기
 //   [안내문구]   : 기본 문구 확인·수정, 고른 호실마다 다른 문구 쓰기 (작은 창)
@@ -22,7 +22,7 @@
   // ---------- 목록 그리기 (15분마다 호출) ----------
   let lastKey = '';
   function draw(f, s) {
-    const rows = S1.possibility(f, s).sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1));
+    const rows = S1.possibility(f, s).sort((a, b) => b.p - a.p);   // 예측 kW 큰 순 → 맨 위 5개 = 왼쪽 Top 5 (처음부터 체크)
     const top5 = new Set(S1.topRooms(f).map((r) => r[0]));
     rows.forEach((r) => { if (!A.touched[r.c]) A.checked[r.c] = top5.has(r.c); });
     if (!A.touched.COMMON) A.checked.COMMON = false;

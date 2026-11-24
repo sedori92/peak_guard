@@ -137,6 +137,9 @@ def replay(date: str = Query(..., description="YYYY-MM-DD"), model: str = "Light
             "t": t, "y": num(agg.loc[t, "y"], 2), "p": num(agg.loc[t, "p"], 2),
             "temp": num(temp.get(t), 1), "pred": [num(v, 2) for v in pred], "thr": num(thr, 2),
             "rooms": rooms_now, "common": num(common.get(t, 0.0), 2), "proom": proom,
+            # 점검 우선 호실(예상 피크 시각 예측 kW 상위 8개)의 15·30·45·60분 예측 → 하단 그래프 점 4개
+            "rp": {room_key(c): [round(float(room_fc.get((t, c, 15 * (h + 1)), rooms_now[room_key(c)])), 3) for h in range(4)]
+                   for c in sorted((c for c in rooms if c not in inactive), key=lambda c: -proom[room_key(c)])[:8]},
             "shap": [[r.feature, num(r.contribution_kw, 2)] for r in e.itertuples()],
             "shap_base": num(inf["shap_base"], 2), "shap_pred": num(lg_pred.get(t), 2),
         })

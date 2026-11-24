@@ -81,13 +81,13 @@
         <h2>점검 우선 Top 5 호실 추이 <span class="sub" id="t5t">—</span></h2>
         <div class="legend" id="t5leg"></div>
         <svg class="chart" id="t5chart" viewBox="0 0 900 280" preserveAspectRatio="none" role="img" aria-label="Top 5 호실 수요전력 추이"></svg>
-        <p class="note">실선 = 오늘 0시부터 지금까지 실측, 점선 끝 점 = 예상 피크 시각의 호실 예측값. Top 5는 15분마다 다시 고릅니다.</p>
+        <p class="note">실선 = 지금까지 실측, 점선 점 4개 = 15·30·45·60분 뒤 호실 예측(색칠한 점 = 건물 예상 피크 시각). Top 5 = 건물 예상 피크 시각 예측 kW 상위 5개 호실, 15분마다 다시 고릅니다.</p>
       </div>
       <!-- 호실별 피크 예측 가능성: 막대 = 호실 기준 대비 %, 숫자 = 건물 비중 % -->
       <div class="card">
         <h2>호실별 피크 예측 가능성 <span class="sub" id="pbt">—</span></h2>
         <div class="pbars" id="pbars"></div>
-        <p class="note">막대 = 다음 1시간 예측 최대 ÷ 그 호실 직전 30일 P95(95번째 백분위수). 100% 이상이면 그 호실이 평소 피크를 넘을 것으로 예상. 왼쪽 kW = 그 호실 다음 1시간 예측 최대.</p>
+        <p class="note">순서·막대 = 건물 예상 피크 시각의 그 호실 예측 kW (큰 순, 왼쪽 Top 5·경보발령 선택과 같은 순서). 평소의 % = 그 호실 직전 30일 P95(95번째 백분위수) 대비 — 100% 이상(빨강)이면 그 호실이 평소보다 많이 쓸 것으로 예상.</p>
       </div>
     </div>
   </section>
