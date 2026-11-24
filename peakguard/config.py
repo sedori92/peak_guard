@@ -66,4 +66,5 @@ DISPLAY = {BASE_DAY: BASE_DAY, BASE_LAST: BASE_LAST}
 DISPLAY |= {f[2]: f[1] for f in FAMILIES} | {f[3]: f[1] for f in FAMILIES}
 METHOD = {BASE_DAY: "기준"} | {f[2]: "direct" for f in FAMILIES} | {f[3]: "sum" for f in FAMILIES}
 DEFAULT_METHOD = "direct"
-DEFAULT_MODEL = "LightGBM"
+DEFAULT_MODEL = "BiLSTM"                # 화면 첫 값: 채널별 합산 후 예측 · Bi-LSTM · 시험기간 마지막 날
+DEFAULT_DATE = "2026-11-02"

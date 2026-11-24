@@ -26,7 +26,7 @@
     const method = meta.families.some((f) => f.sum === want) ? 'sum' : (QS.get('model') ? 'direct' : meta.default_method);
     meta.methods.forEach((m) => $('#method').add(new Option(m.name, m.id, false, m.id === method)));
     meta.families.forEach((f) => $('#family').add(new Option(f.name, f.family, false, f.family === fam.family)));
-    const date = QS.get('date') || (meta.days.find((d) => d.date === ((PG.STATIC && PG.STATIC.date) || '2026-10-28')) || meta.days[meta.days.length - 1]).date;
+    const date = QS.get('date') || (meta.days.find((d) => d.date === ((PG.STATIC && PG.STATIC.date) || meta.default_date || '2026-11-02')) || meta.days[meta.days.length - 1]).date;
     meta.days.forEach((d) => $('#dsel').add(new Option(d.date, d.date, false, d.date === date)));
     const go = () => { location.href = location.pathname + '?date=' + $('#dsel').value + '&model=' + encodeURIComponent(S.modelId()) + location.hash; };
     ['#method', '#family', '#dsel'].forEach((s) => { $(s).onchange = () => (S.live ? S.goLive() : go()); });
@@ -91,7 +91,8 @@
     msg.append(line, sm);
     if (f.thr == null) $('#thr').textContent = '—'; else setv('#thr', fmt(f.thr, 2), 'kW');
     const o = S.thrOpts[S.thrKey];
-    $('#thrnote').textContent = o ? `${o.period} · ${o.days}일치` + (S.thrKey === 'recent30' && f.thr_note ? ` (${f.thr_note})` : '') : (f.thr_note || '');
+    // 기준값 설명: 그 기간 15분 값 N개를 크기순으로 세웠을 때 상위 5%가 시작되는 경계 (최대값의 95%가 아님)
+    $('#thrnote').textContent = o ? `${o.name} 15분 값 ${(o.n || 0).toLocaleString()}개 중 상위 5% 경계 (${o.period})` + (S.live && S.thrKey === 'recent30' && f.thr_note ? ` · ${f.thr_note}` : '') : (f.thr_note || '');
   }
   const setv = (sel, v, u) => { const e = $(sel); if (e.dataset.v !== v) { e.dataset.v = v; e.replaceChildren(document.createTextNode(v), Object.assign(document.createElement('small'), { textContent: u })); e.classList.remove('flash'); void e.offsetWidth; e.classList.add('flash'); } };
   // 상태 띠 ① 현재 피크: 한전 방식 최대수요전력(전날까지) — 오늘 실측이 넘으면 오늘 값으로

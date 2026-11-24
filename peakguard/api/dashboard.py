@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Query
 
-from ..config import (DEFAULT_METHOD, DEFAULT_MODEL, DISPLAY, FAMILIES, FLOORS, METHOD, METHODS, PEAK_PERCENTILE,
+from ..config import (DEFAULT_DATE, DEFAULT_METHOD, DEFAULT_MODEL, DISPLAY, FAMILIES, FLOORS, METHOD, METHODS, PEAK_PERCENTILE,
                       PEAK_WINDOW_DAYS, SUM_BASE)
 from .common import WEEK_KO, check_model, has_table, info, num, q, room_key, to_local
 
@@ -31,7 +31,7 @@ def days():
     fams = [{"family": f[0], "name": f[1], "direct": f[2], "sum": f[3]} for f in FAMILIES if f[2] in have and f[3] in have]
     return {"days": d.to_dict("records"), "models": [{"id": m, "name": DISPLAY.get(m, m)} for m in info()["models"]],
             "methods": [{"id": k, "name": v} for k, v in METHODS.items()], "families": fams,
-            "default_model": DEFAULT_MODEL, "default_method": DEFAULT_METHOD,
+            "default_model": DEFAULT_MODEL, "default_method": DEFAULT_METHOD, "default_date": DEFAULT_DATE,
             "test_start": info()["test_start"], "test_end": info()["test_end"]}
 
 

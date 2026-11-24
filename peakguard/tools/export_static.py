@@ -1,7 +1,7 @@
 """[6] 화면 — 관리자 화면을 서버 없이 열리는 HTML 한 파일로 내보내기 (발표·시연용)
 
     python run.py 6                 → reports/peakguard_demo.html  (시험기간 모든 날 × 8개 모델)
-    python run.py 6 --date 2026-10-28   처음 열 때 보여 줄 재생 기준일 (기본 10-28)
+    python run.py 6 --date 2026-10-28   처음 열 때 보여 줄 재생 기준일 (기본 11-02)
     더블클릭으로 열림. 회사 데이터가 들어 있으니 외부 공유 주의.
 """
 from __future__ import annotations
@@ -10,13 +10,13 @@ import argparse
 import json
 from pathlib import Path
 
-from ..config import DEFAULT_MODEL, REPORT_DIR, WEB_DIR
+from ..config import DEFAULT_DATE, DEFAULT_MODEL, REPORT_DIR, WEB_DIR
 
 SHARED = ("t", "y", "p", "temp", "thr", "rooms", "common")       # 모델과 상관없는 실측 (날마다 한 번만 저장)
 PER_MODEL = ("pred", "proom", "rp")                                    # 모델마다 다른 예측
 
 
-def export(date: str = "2026-10-28", model: str = DEFAULT_MODEL, out: str | None = None) -> Path:
+def export(date: str = DEFAULT_DATE, model: str = DEFAULT_MODEL, out: str | None = None) -> Path:
     """시험기간 모든 날을 세 화면 모두 서버 없이 볼 수 있게 담습니다.
 
     - 첫 번째 화면: 시험기간 모든 날 × 4개 모델 × 2개 방식 재생 (재생 기준일·방식·모델 콤보버튼 모두 동작)
@@ -98,7 +98,7 @@ def export(date: str = "2026-10-28", model: str = DEFAULT_MODEL, out: str | None
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="시연용 정적 HTML 내보내기")
-    ap.add_argument("--date", default="2026-10-28", help="처음 열 때 재생 기준일")
+    ap.add_argument("--date", default=DEFAULT_DATE, help="처음 열 때 재생 기준일")
     ap.add_argument("--model", default=DEFAULT_MODEL)
     ap.add_argument("--out", default=None)
     a = ap.parse_args()

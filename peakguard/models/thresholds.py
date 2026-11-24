@@ -51,7 +51,7 @@ def options(total: pd.Series, day) -> dict:
         ok = len(w) >= need
         last = b - pd.Timedelta(days=1)
         out[k] = {"key": k, "name": NAMES[k], "kw": round(float(np.percentile(w, PEAK_PERCENTILE)), 2) if ok else None,
-                  "period": f"{a:%Y-%m-%d} ~ {last:%Y-%m-%d}" if b > a else "—", "days": round(len(w) / DAY, 1),
+                  "period": f"{a:%Y-%m-%d} ~ {last:%Y-%m-%d}" if b > a else "—", "days": round(len(w) / DAY, 1), "n": int(len(w)),
                   "note": None if ok else ("자료 없음 (2026-07-01부터 수집)" if len(w) == 0 else f"자료 부족 ({len(w) / DAY:.1f}일치)")}
     return out
 
