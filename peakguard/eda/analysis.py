@@ -9,7 +9,7 @@
   anomalies   평소(같은 요일·같은 시각 평균)보다 크게 벗어난 15분 칸 (z ≥ 3)    — 이상 사용패턴
   pre_peak    위험일(그날 최대가 피크 기준 이상) 피크 전 2시간 평균 곡선과
               피크 1시간 전부터 가장 많이 늘어난 호실                         — 피크 발생 전 사용패턴
-  saving      위험선(피크 기준 95%) 이상이 자주 나온 시간대와 그때 많이 쓰는 호실 — 절감이 필요한 시간대·대상
+  saving      피크 기준 이상(위험)이 자주 나온 시간대와 그때 많이 쓰는 호실 — 절감이 필요한 시간대·대상
 """
 from __future__ import annotations
 
@@ -135,7 +135,7 @@ def analyze(rng: str = "all", date: str | None = None, key: tuple = ()) -> dict:
                        "summary": ("위험일 없음" if avg is None else
                                    f"위험일 {risk_days}일: 피크 2시간 전 수요는 피크의 {avg[0]:.0f}%, 1시간 전 {avg[4]:.0f}%, "
                                    f"30분 전 {avg[6]:.0f}% — 마지막 1시간에 {100 - avg[4]:.0f}%p 오름")}
-    # 7) 절감이 필요한 시간대: 위험선(그날 기준의 95%) 이상이 나온 빈도 (평일, 15분 칸)
+    # 7) 절감이 필요한 시간대: 그날 피크 기준 이상(위험)이 나온 빈도 (평일, 15분 칸)
     th_s = pd.Series([thr_day.get(f"{x:%Y-%m-%d}", np.nan) for x in t.index], index=t.index)
     hitm = (t >= th_s * ALERT_RATIO) & th_s.notna()
     wk = t.index.dayofweek < 5
@@ -162,7 +162,7 @@ def analyze(rng: str = "all", date: str | None = None, key: tuple = ()) -> dict:
         sv.append({"from": fmt(a), "to": fmt(b + 1), "freq_pct": round(float(freq.loc[a:b].mean()), 0),
                    "rooms": [f"{_label(k)} {v:.2f} kW" for k, v in tops]})
     sv.sort(key=lambda x: -x["freq_pct"])
-    out["saving"] = {"rule": f"평일 15분 칸 중 그날 피크 기준의 {int(ALERT_RATIO * 100)}% 이상이 나온 비율 (위험 빈도)",
+    out["saving"] = {"rule": "평일 15분 칸 중 그날 피크 기준 이상이 나온 비율 (위험 빈도)",
                      "freq": {fmt(int(k)): round(float(v), 1) for k, v in freq.items()}, "blocks": sv[:4],
                      "summary": ("위험 빈도가 높은 시간대 없음" if not sv else
                                  "절감 필요 시간대: " + ", ".join(f"평일 {x['from']}~{x['to']} (위험 빈도 {x['freq_pct']:.0f}%)" for x in sv[:3]))}

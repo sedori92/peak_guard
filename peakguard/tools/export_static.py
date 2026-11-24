@@ -107,7 +107,7 @@ def export(date: str = DEFAULT_DATE, model: str = DEFAULT_MODEL, out: str | None
     inject = "<script>window.PEAKGUARD_STATIC = " + json.dumps(static, ensure_ascii=False, default=str, separators=(",", ":")) + ";</script>"
     html = html.replace('<link rel="stylesheet" href="static/style.css">', "<style>\n" + css + "</style>")
     html = html.replace('<script src="static/bg.js"></script>', inject + "\n<script>\n" + (WEB_DIR / "static" / "bg.js").read_text(encoding="utf-8") + "</script>")
-    for js in ("common", "screen1_predict", "screen1_alerts", "screen2_history", "screen3_perf", "app"):
+    for js in ("common", "screen1_predict", "screen1_alerts", "screen2_history", "screen2_patterns", "screen3_perf", "app"):
         html = html.replace(f'<script src="static/{js}.js"></script>',
                             "<script>\n" + (WEB_DIR / "static" / f"{js}.js").read_text(encoding="utf-8") + "</script>")
     path = Path(out or REPORT_DIR / "peakguard_demo.html")

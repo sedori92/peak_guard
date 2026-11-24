@@ -19,7 +19,7 @@ import pandas as pd
 
 from ..config import DAY, PEAK_PERCENTILE, PEAK_WINDOW_DAYS
 
-KEYS = ["recent30", "prev_month", "this_month", "summer", "winter"]
+KEYS = ["recent30", "this_month", "prev_month", "summer", "winter"]   # 화면 콤보박스 순서
 NAMES = {"recent30": "최근 30일", "prev_month": "전월", "this_month": "당월", "summer": "7~9월", "winter": "12~2월"}
 
 

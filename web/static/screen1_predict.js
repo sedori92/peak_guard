@@ -64,9 +64,9 @@
   S.thrOf = (f) => (S.thrKey === 'recent30' || !S.thrOpts[S.thrKey] ? f.thr0 : S.thrOpts[S.thrKey].kw);
   const applyThr = (f) => { if (f.thr0 === undefined) f.thr0 = f.thr; f.thr = S.thrOf(f); return f; };
 
-  // ---------- 판정: 다음 1시간 예측 4개 중 하나라도 기준 이상 = 피크 위험, 95% 이상 = 주의 ----------
-  //   2단계 (기업 1차 답변 C2 + 2차 수정 지시): 다음 1시간 예측 4칸 중 하나라도 피크 기준의 95% 이상 = '위험', 나머지 '정상'
-  S.RATIO = 0.95;
+  // ---------- 판정: 다음 1시간 예측 4개 중 하나라도 기준 이상 = 위험, 나머지 정상 ----------
+  //   2단계 (기업 1차 답변 C2): 다음 1시간 예측 4칸 중 하나라도 피크 기준 이상 = '위험', 나머지(예전 '주의' 포함) '정상'
+  S.RATIO = 1.0;
   S.state = (f) => {
     const mx = Math.max(...f.pred), k = f.pred.indexOf(mx);
     const first = f.thr == null ? -1 : f.pred.findIndex((v) => v >= f.thr * S.RATIO);
@@ -87,7 +87,7 @@
     if (f.thr == null) line.append('피크 기준을 계산할 실측이 부족합니다 — 오른쪽에서 다른 기준을 고르세요');
     else if (s.lvl === 'bad') line.append('최초 위험 예상 ', PG.b(addMin(f.t, 15 * (s.first + 1))), ' · 최대 예상 ', PG.b(fmt(s.mx, 2) + ' kW'), ' · 기준의 ', PG.b(fmt(s.mx / f.thr * 100, 0) + '%'),
       s.mx >= f.thr ? ` (기준 초과 +${fmt(s.mx - f.thr, 2)} kW)` : '');
-    else line.append('다음 1시간 최대 ', PG.b(fmt(s.mx, 2) + ' kW'), ' · 기준의 ', PG.b(fmt(s.mx / f.thr * 100, 0) + '%'), ' · 위험선(95%)까지 여유 ', PG.b(fmt(f.thr * S.RATIO - s.mx, 2) + ' kW'));
+    else line.append('다음 1시간 최대 ', PG.b(fmt(s.mx, 2) + ' kW'), ' · 기준의 ', PG.b(fmt(s.mx / f.thr * 100, 0) + '%'), ' · 기준까지 여유 ', PG.b(fmt(f.thr - s.mx, 2) + ' kW'));
     const sm = document.createElement('small');
     sm.textContent = s.lvl === 'bad' ? `먼저 점검할 호실: ${S.topRooms(f, 3).map((r) => roomName(r[0])).join(', ')} → 오른쪽 '경보발령 선택'에서 발령` : `다음 갱신 ${addMin(f.t, 15)}`;
     msg.append(line, sm);
@@ -149,9 +149,6 @@
       el('rect', { x: ml, y: mt, width: W - ml - mr, height: Math.max(0, ty - mt), fill: css('--bad'), opacity: 0.06 }, svg);
       el('line', { x1: ml, x2: W - mr, y1: ty, y2: ty, stroke: css('--bad'), 'stroke-width': 1.5, 'stroke-dasharray': '6 4' }, svg);
       const tl = el('text', { x: ml + 6, y: ty - 6, 'font-size': 11, fill: css('--bad'), 'font-weight': 600 }, svg); tl.textContent = '피크 기준 ' + fmt(f.thr, 2) + ' kW';
-      const wy = ys(f.thr * S.RATIO);                       // 위험선 = 기준의 95%
-      el('line', { x1: ml, x2: W - mr, y1: wy, y2: wy, stroke: css('--bad'), 'stroke-width': 1, 'stroke-dasharray': '2 4', opacity: 0.7 }, svg);
-      const wl = el('text', { x: W - mr - 4, y: wy + 13, 'text-anchor': 'end', 'font-size': 10.5, fill: css('--bad'), opacity: 0.85 }, svg); wl.textContent = '위험선 95% ' + fmt(f.thr * S.RATIO, 2);
     }
     if (!S.live && S.trail.length > 1) el('polyline', { points: S.trail.filter((p) => p[0] >= X0).map((p) => xs(p[0]) + ',' + ys(p[1])).join(' '), fill: 'none', stroke: css('--amber'), 'stroke-width': 1.2, opacity: 0.55 }, svg);
     const pts = S.history().filter((x) => x.y != null).map((x) => [tm(x.t), x.y]).filter((p) => p[0] >= X0);

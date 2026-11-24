@@ -2,7 +2,7 @@
 
   timing(thr)   예측시각과 실제 발생시각의 오차 (기업 1차 답변 D2)
                   사건 = 실측 건물 합계가 피크 기준 이상으로 올라간 연속 구간, 시작 시각 T
-                  사전 경보 = T 1시간 전~15분 전에 낸 예측 중 '위험'(기준의 95% 이상)이 하나라도 있으면
+                  사전 경보 = T 1시간 전~15분 전에 낸 예측 중 '위험'(기준 이상)이 하나라도 있으면
                   선행시간 = T − 처음 위험을 낸 예측 시점,  시각 오차 = 그 예측이 말한 최초 위험 시각 − T
   by_condition  조건별 예측 정확도 MAE (평일 / 주말·공휴일 / 근무시간 09~18시 / 그 밖 시간) (과제 원문 세부 7)
   weather       기상(기온·습도) 포함 / 미포함 성능 비교 (models/compare_no_weather.json)
@@ -67,7 +67,7 @@ def timing(day_thr: dict) -> dict:
                   "within15_pct": round(float(np.mean(np.abs(err) <= 15) * 100), 0) if err else None}
     return {"events": int(len(starts)), "rows": out,
             "rule": "사건 = 실측 건물 합계가 그날 피크 기준 이상으로 올라간 연속 구간(시작 시각 T). 사전 경보 = T 1시간~15분 전 예측 중 "
-                    f"'위험'(기준의 {int(ALERT_RATIO * 100)}% 이상)이 있었는지. 선행시간 = T − 처음 경보 시점, 시각 오차 = 경보가 말한 최초 위험 시각 − T."}
+                    "'위험'(기준 이상 예측)이 있었는지. 선행시간 = T − 처음 경보 시점, 시각 오차 = 경보가 말한 최초 위험 시각 − T."}
 
 
 @lru_cache(maxsize=1)
@@ -107,9 +107,8 @@ def weather_compare(perf_rows: dict) -> dict | None:
 def selection(sections: list[dict]) -> dict:
     """선정 규칙 (기업 1차 답변 D1·D2)
       ① 기업 목표: 기준모델(전일 동일시각) 대비 MAE 10% 이상 개선한 모델만 후보
-      ② 피크 경보 성능: F1 = 재현율(놓치지 않음)과 정밀도(헛경보가 적음)의 조화평균이 가장 높은 모델
-         - 위험을 기준의 95%부터 알리므로 후보 모델의 재현율이 모두 높아(85~97%) 차이는 주로 헛경보에서 남
-      ③ 같으면 MAE 가 작은 모델
+      ② 피크를 가장 적게 놓치는(재현율 높은) 모델 — 피크가드의 목적은 피크를 놓치지 않는 것
+      ③ 같으면 헛경보가 적은 모델, 그다음 MAE 가 작은 모델 (F1 = 재현율·정밀도 조화평균은 참고로 표시)
     """
     cand = []
     for s in sections:
@@ -122,7 +121,7 @@ def selection(sections: list[dict]) -> dict:
             cand.append({**r, "method": s["key"], "method_name": s["title"], "f1": round(f1, 3)})
     if not cand:
         return {"text": "선정할 수 있는 모델이 없습니다 (기준모델 대비 10% 개선 + 재현율 계산 가능한 모델 없음)."}
-    cand.sort(key=lambda r: (-r["f1"], r["mae"]))
+    cand.sort(key=lambda r: (-r["peak"]["recall"], r["peak"]["fp"], r["mae"]))   # 피크를 놓치지 않는 것이 먼저
     best = cand[0]
     direct = [c for c in cand if c["method"] == "direct"]
     db = direct[0] if direct else None
@@ -130,10 +129,9 @@ def selection(sections: list[dict]) -> dict:
     hi_rec = max(cand, key=lambda r: (r["peak"]["recall"], -r["peak"]["fp"]))
     lines = [f"선정: {best['method_name']} · {best['name']}",
              f"근거 ① 기업 목표: 기준모델(전일 동일시각) 대비 MAE {best['gain']}% 개선 (목표 10% 이상) — MAE {best['mae']} kW",
-             f"근거 ② 피크 경보: 실제 위험 {pk['tp'] + pk['fn']}건 중 {pk['tp']}건 사전 감지(재현율 {round(pk['recall'] * 100)}%), 헛경보 {pk['fp']}건(정밀도 {round((pk['precision'] or 0) * 100)}%) "
-             f"— 재현율과 정밀도를 함께 본 F1 {best['f1']}로 후보 중 가장 높음",
-             f"근거 ③ 위험을 기준의 95%부터 알려 후보 모델 모두 재현율이 높음. 재현율만 보면 {hi_rec['method_name']} · {hi_rec['name']}"
-             f"({round(hi_rec['peak']['recall'] * 100)}%)가 가장 높지만 헛경보가 {hi_rec['peak']['fp']}건으로 많아, 관리자가 실제로 쓰기에는 헛경보가 적은 모델이 유리"]
+             f"근거 ② 피크 경보: 실제 위험 {pk['tp'] + pk['fn']}건 중 {pk['tp']}건 사전 감지(재현율 {round(pk['recall'] * 100)}%, 놓침 {pk['fn']}건) — 후보 중 가장 적게 놓침, "
+             f"헛경보 {pk['fp']}건(정밀도 {round((pk['precision'] or 0) * 100)}%, F1 {best['f1']})",
+             "근거 ③ 피크가드의 목적은 피크를 놓치지 않는 것이므로 재현율을 먼저, 그다음 헛경보·MAE 순으로 비교"]
     if db and db is not best:
         dk = db["peak"]
         lines.append(f"참고: 기업 권장 방식(채널별 합산 후 예측) 안에서는 {db['name']} — 재현율 {round(dk['recall'] * 100)}%, 헛경보 {dk['fp']}건, F1 {db['f1']}, MAE {db['mae']}")

@@ -24,7 +24,7 @@
     $('#pthrinfo').textContent = T.n ? `기준값 ${T.kw_min === T.kw_max ? fmt(T.kw_min, 2) : fmt(T.kw_min, 2) + ' ~ ' + fmt(T.kw_max, 2)} kW · 비교한 예측 시점 ${T.n.toLocaleString()}개 · 실제 피크 위험 ${T.actual_risk}건` : '이 기준은 계산할 자료가 없습니다';
     $('#perfnote').textContent = `시험기간 ${D.test[0]} ~ ${D.test[1]} (학습·검증에 쓰지 않은 기간)의 실측과 비교. ` +
       (sp.train ? `학습 ${sp.train[0].slice(0, 10)}~${sp.train[1].slice(0, 10)} · 검증 ${sp.val[0].slice(0, 10)}~${sp.val[1].slice(0, 10)} · ` : '') +
-      `모든 모델은 같은 예측 시점에서 비교(공통 표본). 예측 '위험' = 다음 1시간 예측 4칸 중 하나라도 그날 '${T.name}' 기준의 95% 이상(화면 판정과 같음), 실제 위험 = 실측 4칸 중 하나라도 기준 이상. 기준을 바꾸면 ② 오분류표만 바뀌고 ① 예측 오차는 같습니다.` +
+      `모든 모델은 같은 예측 시점에서 비교(공통 표본). 피크 위험 = 다음 1시간 4칸 중 하나라도 그날 '${T.name}' 기준 이상 (예측·실측 같은 기준, 화면 판정과 같음). 기준을 바꾸면 ② 오분류표만 바뀌고 ① 예측 오차는 같습니다.` +
       (T.n && !T.actual_risk ? ` ※ 시험기간에 '${T.name}' 기준을 넘은 적이 없어 재현율을 계산할 수 없습니다(헛경보만 비교).` : '');
     const box = $('#perfsections'); box.replaceChildren();
     box.append(selectionCard(D));
@@ -102,7 +102,7 @@
       row(t, ['순위', '방식 · 모델', 'F1', '재현율', '정밀도', '헛경보', 'MAE', '개선율'], true);
       S.ranking.forEach((r, i) => { const tr = row(t, [i + 1, r.name, fmt(r.f1, 3), pct(r.recall, 0), pct(r.precision, 0), r.fp, fmt(r.mae, 3), fmt(r.gain, 1) + '%']); if (!i) tr.classList.add('best'); });
       const w = mk('div', 'tscroll'); w.append(t); c.append(w);
-      c.append(mk('p', 'note', `기준: 기업 목표(기준모델 대비 MAE 10% 이상 개선)를 넘은 모델 중 F1(재현율과 정밀도의 조화평균, F1 score) → MAE 순. 피크 기준 = '${D.thr.name}' 95번째 백분위수, 위험 = 기준의 95% 이상 예측.`));
+      c.append(mk('p', 'note', `기준: 기업 목표(기준모델 대비 MAE 10% 이상 개선)를 넘은 모델 중 재현율 → 헛경보 → MAE 순 (F1 = 재현율·정밀도 조화평균, 참고). 피크 기준 = '${D.thr.name}' 95번째 백분위수, 위험 = 기준의 95% 이상 예측.`));
     }
     return c;
   }
