@@ -26,6 +26,10 @@
       (sp.train ? `학습 ${sp.train[0].slice(0, 10)}~${sp.train[1].slice(0, 10)} · 검증 ${sp.val[0].slice(0, 10)}~${sp.val[1].slice(0, 10)} · ` : '') +
       `모든 모델은 같은 예측 시점에서 비교(공통 표본). 피크 위험 = 다음 1시간 4칸 중 하나라도 그날 '${T.name}' 기준 이상 (예측·실측 같은 기준, 화면 판정과 같음). 기준을 바꾸면 ② 오분류표만 바뀌고 ① 예측 오차는 같습니다.` +
       (T.n && !T.actual_risk ? ` ※ 시험기간에 '${T.name}' 기준을 넘은 적이 없어 재현율을 계산할 수 없습니다(헛경보만 비교).` : '');
+    const pr = D.prep;
+    $('#perfprep').textContent = pr ? `데이터 정제(기업 추가 답변 5번): 원자료 ${pr.rows.toLocaleString()}건 중 현재전력 음수 ${pr.power_negative.toLocaleString()}건(${pr.power_negative_pct}%)을 결측으로 처리 → ` +
+      `짧은 끊김(1시간 이내) ${pr.short_interpolated_cells.toLocaleString()}칸은 앞뒤 값으로 보간, 긴 결측 ${pr.long_gap_cells.toLocaleString()}칸은 보간하지 않고 학습에서 제외(학습기간 해당 ${pr.excluded_train_cells.toLocaleString()}칸). ` +
+      `절댓값·0으로 바꾸지 않음. 성능 평가는 실측이 있는 칸만 사용.` : '';
     const box = $('#perfsections'); box.replaceChildren();
     box.append(selectionCard(D));
     D.sections.forEach((s) => box.append(section(s)));
@@ -102,7 +106,7 @@
       row(t, ['순위', '방식 · 모델', 'F1', '재현율', '정밀도', '헛경보', 'MAE', '개선율'], true);
       S.ranking.forEach((r, i) => { const tr = row(t, [i + 1, r.name, fmt(r.f1, 3), pct(r.recall, 0), pct(r.precision, 0), r.fp, fmt(r.mae, 3), fmt(r.gain, 1) + '%']); if (!i) tr.classList.add('best'); });
       const w = mk('div', 'tscroll'); w.append(t); c.append(w);
-      c.append(mk('p', 'note', `기준: 기업 목표(기준모델 대비 MAE 10% 이상 개선)를 넘은 모델 중 재현율 → 헛경보 → MAE 순 (F1 = 재현율·정밀도 조화평균, 참고). 피크 기준 = '${D.thr.name}' 95번째 백분위수, 위험 = 기준의 95% 이상 예측.`));
+      c.append(mk('p', 'note', `기준: 기업 목표(기준모델 대비 MAE 10% 이상 개선)를 넘은 모델 중 재현율 → 헛경보 → MAE 순 (F1 = 재현율·정밀도 조화평균, 참고). 피크 기준 = '${D.thr.name}' 95번째 백분위수, 위험 = 다음 1시간 예측 4칸 중 하나라도 기준 이상.`));
     }
     return c;
   }
@@ -134,6 +138,19 @@
       const w3 = mk('div', 'tscroll'); w3.append(t3);
       w.append(w3, mk('p', 'selbest small', D.weather.decision), mk('p', 'note', D.weather.note + ' 주황 줄 = 기상을 넣어 검증 MAE가 줄어든 모델.' + (D.thr.key !== 'recent30' ? ' (맞힘·헛경보·재현율은 최근 30일 기준에서만 정확히 비교됨)' : '')));
       wrap.append(w);
+    }
+    // ⑥ 기간별(일별) 예측 정확도
+    if (D.by_day) {
+      const Y = D.by_day, d = mk('div', 'card wide'); d.append(mk('h2', null, '⑥ 기간별 예측 정확도 (시험기간 일별 MAE, kW)'));
+      const t4 = mk('table', 'perf');
+      row(t4, ['방식 · 모델', ...Y.days.map((x) => `${x.date.slice(5)}(${x.wd})`), '평일 평균', '주말·공휴일 평균'], true);
+      Object.entries(Y.rows).forEach(([id, r]) => {
+        const tr = row(t4, [N[id] || id, ...r.daily.map((v) => fmt(v, 3)), fmt(r.weekday, 3), fmt(r.offday, 3)]);
+        r.daily.forEach((v, i) => { if (v != null && v === Y.best[i]) tr.children[i + 1].classList.add('mincell'); });
+      });
+      const w4 = mk('div', 'tscroll'); w4.append(t4);
+      d.append(w4, mk('p', 'note', Y.note));
+      wrap.append(d);
     }
     return wrap;
   }

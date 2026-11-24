@@ -3,7 +3,7 @@
 실증 전력데이터 기반 AI 전력 수요·피크 예측 및 에너지 절감 의사결정 지원 서비스 (유큐브 PROJECT_02, 식스센스 팀)
 
 이 문서는 기업 과제 원문과 멘토링 답변(11.03 · 11.06 · 11.11 · 11.12)을 기준으로 구현한 내용을 정리합니다.
-모델 성능 숫자와 선정 근거는 [MODEL_SELECTION.md](MODEL_SELECTION.md), 기업 시스템 연계는 [INTEGRATION.md](INTEGRATION.md) 를 봅니다.
+모델 성능 숫자와 선정 근거는 [MODEL_SELECTION.md](MODEL_SELECTION.md), 설정값 비교는 [TUNING.md](TUNING.md), 기업 시스템 연계는 [INTEGRATION.md](INTEGRATION.md), 시나리오 테스트는 [TEST_SCENARIOS.md](TEST_SCENARIOS.md), 적용 가능성·개선 방향은 [PLANNER_REVIEW.md](PLANNER_REVIEW.md) 를 봅니다.
 
 ## 1. 구성
 
@@ -19,7 +19,7 @@
 | 실시간 연결 | `peakguard/live/` | 빠진 자료 증분 적재(CSV·기업 DB·기상), 최근 실측 기준 예측 |
 | API | `peakguard/api/` | FastAPI REST/JSON (자동 문서 `/docs`) |
 | 화면 | `web/` | ① 예측 및 경보 ② 피크이력 및 영향도 분석 ③ 모델성능 및 오경보율 비교 |
-| 시험 | `tests/test_smoke.py` | 자동 시험 (`python run.py 7`) |
+| 시험 | `tests/test_smoke.py`, `tests/test_scenarios.py` | 기능 단위 시험 + 관리자 시나리오 시험 10개 (`python run.py 7`) |
 
 실행: `python run.py 1`(환경 점검) → `2`(DB 구축) → `3`(학습) → `5`(서버, http://localhost:8000) → `6`(시연용 HTML).
 
@@ -69,15 +69,16 @@
 |---|---|
 | 기준모델 | 전일 동일시각 (기업 지정) |
 | 머신러닝 | LightGBM, XGBoost, Random Forest — 건물 합계 모델 1개 + 채널 공동 모델 1개, 선행시간을 입력으로 4구간 예측 |
-| 딥러닝 | Bi-LSTM — 지난 6시간(24칸) 흐름 + 기상 + 시간 정보, 전체·채널 함께 학습 |
+| 딥러닝 | Bi-LSTM — 지난 6시간(24칸) 흐름 + 시간 정보(기상 자리는 `USE_WEATHER=False` 라 0), 전체·채널 함께 학습 |
 | 방식 | **채널별 합산 후 예측**(건물 합계를 바로 예측, 기업 권장) / **채널별 예측 후 합산**(채널 61개 예측을 같은 시각끼리 더함) |
+| 설정값 | 검증기간 MAE로 후보 설정을 비교해 정함 (`python -m peakguard.tools.tune`, [TUNING.md](TUNING.md)) |
 | 기간 | 학습 ~2026-09-14 · 검증 09-15~10-06 · 시험 10-20 15:15~11-02 16:15 (시간순, 겹침 없음) |
 
 ### 3-4. 평가 (1차 답변 D1·D2, 과제 원문 세부 3·7)
 - MAE(평균 절대 오차, 주 지표), RMSE(평균 제곱근 오차), MAPE(평균 절대 백분율 오차, 실측 1kW 미만 제외)
 - 기업 목표: 기준모델 대비 MAE 10% 이상 개선
 - 피크 경보: 실제 위험(실측 4칸 중 하나라도 기준 이상) vs 예측 위험(예측 4칸 중 하나라도 기준 이상) → 맞힘·놓침·헛경보, 재현율·정밀도·오분류율
-- 예측시각과 실제 발생시각 오차, 조건별(평일·주말·근무시간·그 밖) 정확도
+- 예측시각과 실제 발생시각 오차, 조건별(평일·주말·근무시간·그 밖) 정확도, 기간별(시험기간 일별) 정확도 — 세 번째 화면 ③④⑥
 - 모든 모델을 같은 예측 시점(공통 표본)에서 비교
 
 ## 4. 분석 (실측만)

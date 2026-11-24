@@ -78,6 +78,8 @@ def performance(thr: str = Query("recent30", pattern="^(recent30|prev_month|this
     from ..evaluation import extra
     out["timing"] = extra.timing({k: v for k, v in sel["days"].items() if v is not None})
     out["by_condition"] = extra.by_condition()
+    out["by_day"] = extra.by_day()
+    out["prep"] = inf.get("prep")
     allrows = {r["id"]: r for sec in out["sections"] for r in sec["rows"]}
     out["weather"] = extra.weather_compare(allrows) if thr == "recent30" else extra.weather_compare(
         {k: {**v, "peak": None} for k, v in allrows.items()})

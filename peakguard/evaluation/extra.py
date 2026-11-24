@@ -87,6 +87,37 @@ def by_condition() -> dict:
     return {"conditions": list(conds), "n": n, "rows": out}
 
 
+@lru_cache(maxsize=1)
+def by_day() -> dict:
+    """기간별 정확도 (과제 원문 세부 7): 시험기간 예측 대상 날짜별 MAE + 평일/주말·공휴일 평균."""
+    g, P, iss, tot, A, off = _load()
+    flat = pd.DatetimeIndex(np.concatenate([iss + pd.Timedelta(minutes=15 * h) for h in range(1, H + 1)]))
+    shape = (H, len(iss))
+    day = flat.normalize().to_numpy().reshape(shape).T
+    ok = ~np.isnan(A)
+    days = sorted(set(day[ok].tolist()))
+    is_off = {d: bool(off.reindex([pd.Timestamp(d)]).fillna(False).iloc[0]) or pd.Timestamp(d).dayofweek >= 5 for d in days}
+    rows = {}
+    for m, p in P.items():
+        Pm = p.reindex(iss)[[15 * h for h in range(1, H + 1)]].to_numpy()
+        E = np.abs(Pm - A)
+        dd = [round(float(np.mean(E[(day == d) & ok])), 3) if ((day == d) & ok).any() else None for d in days]
+        wk = (np.isin(day, [d for d in days if not is_off[d]])) & ok
+        of = (np.isin(day, [d for d in days if is_off[d]])) & ok
+        rows[m] = {"daily": dd, "weekday": round(float(np.mean(E[wk])), 3) if wk.any() else None,
+                   "offday": round(float(np.mean(E[of])), 3) if of.any() else None}
+    best = [min((r["daily"][i] for r in rows.values() if r["daily"][i] is not None), default=None) for i in range(len(days))]
+    n = [int(((day == d) & ok).sum()) for d in days]
+    WD = "월화수목금토일"
+    return {"days": [{"date": f"{pd.Timestamp(d):%Y-%m-%d}", "wd": WD[pd.Timestamp(d).dayofweek] + ("·휴" if is_off[d] and pd.Timestamp(d).dayofweek < 5 else ""),
+                      "n": k} for d, k in zip(days, n)],
+            "rows": rows, "best": best,
+            "note": f"시험기간 공통 표본(모든 모델이 예측한 칸)을 예측 대상 날짜별로 나눈 건물 합계 MAE. "
+                    f"비교 칸은 {pd.Timestamp(flat[ok.T.ravel()].min()):%m-%d %H:%M} ~ {pd.Timestamp(flat[ok.T.ravel()].max()):%m-%d %H:%M} "
+                    "(수집 중단 뒤 첫날은 전일 동일시각 기준모델에 필요한 전날 자료가 없어 빠짐, 첫날·마지막 날은 일부 시간만). "
+                    "굵은 주황 = 그날 가장 정확한 모델. 칸 수: " + ", ".join(f"{pd.Timestamp(d):%m-%d} {k}" for d, k in zip(days, n))}
+
+
 def weather_compare(perf_rows: dict) -> dict | None:
     """현재 모델(config.USE_WEATHER)과 반대 조건 비교 학습(models/compare_weather.json)을 나란히 놓음."""
     from ..config import USE_WEATHER

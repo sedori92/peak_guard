@@ -111,7 +111,7 @@
         <div><h3>영향도 Top 10 <span class="sub" id="reppk">—</span></h3><div class="tscroll"><table class="perf" id="reptop"></table></div></div>
         <div><h3>평소 대비 증가 Top 10 <span class="sub" id="risesub">—</span></h3><div class="tscroll"><table class="perf" id="reprise"></table></div></div>
       </div>
-      <p class="note">줄을 누르면 오른쪽 두 표와 아래 배치도·영향도가 그 구간의 피크 시각으로 바뀝니다. 건물 합계 = 96개 계측채널 단순합. 영향도 = 피크 시각 사용량과 비중 (건물 대비 = 96채널 합계 대비, 호실 대비 = 호실 34개 합계 대비 — 기업 3차 답변 ④). 평소 = 같은 요일·같은 시각 직전 4주 실측 평균, 증가 = 그 시각 실측 − 평소 (그날 유독 더 써서 피크를 만든 채널).</p>
+      <p class="note">줄을 누르면 오른쪽 두 표와 아래 배치도·영향도가 그 구간의 피크 시각으로 바뀝니다. 건물 합계 = 96개 계측채널 단순합. 영향도 = 피크 시각 사용량과 비중 (건물 대비 = 96채널 합계 대비, 호실 대비 = 호실 34개 합계 대비 — 기업 3차 답변 ④). 평소 = 같은 요일·같은 시각 직전 4주 실측 평균, 증가 = 그 시각 실측 − 평소 (그날 유독 더 써서 피크를 만든 채널). 비중은 피크 시각의 사용 비중이며, 그 호실이 피크를 일으킨 인과적 영향이나 전기요금 배분율과는 다릅니다 (기업 3차 답변 ③).</p>
     </div>
     <!-- 하단: 고른 피크 시각의 층별 호실 배치도 + 전체 및 채널별 영향도 (모두 실측) -->
     <div class="grid2 histgrid">
@@ -154,6 +154,7 @@
     <div class="card auxnote perfhead">
       <div class="chctl"><label for="pthrsel">피크 기준</label><select id="pthrsel" aria-label="성능 비교에 쓸 피크 기준점"></select><span class="note" id="pthrinfo"></span></div>
       <p id="perfnote">—</p>
+      <p class="note" id="perfprep"></p>
     </div>
     <div id="perfsections"></div>
   </section>

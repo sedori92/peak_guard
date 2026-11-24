@@ -25,7 +25,7 @@ def peak_detection(actual: np.ndarray, pred: np.ndarray, thr: np.ndarray, ok: np
     """actual·pred: (발행, 4) kW, thr: (발행,) 기준값, ok: 평가에 쓸 발행.
 
     실제 위험 = 다음 1시간 실측 4칸 중 하나라도 피크 기준 이상
-    예측 위험 = 다음 1시간 예측 4칸 중 하나라도 피크 기준 × ALERT_RATIO(95%) 이상 (화면 '위험' 판정과 같음)
+    예측 위험 = 다음 1시간 예측 4칸 중 하나라도 피크 기준 × ALERT_RATIO(현재 1.0 = 기준) 이상 (화면 '위험' 판정과 같음)
     """
     from ..config import ALERT_RATIO
     r = ALERT_RATIO if ratio is None else ratio
