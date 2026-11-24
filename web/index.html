@@ -93,11 +93,11 @@
     </div>
   </section>
 
-  <!-- ===================== 두 번째 화면: 피크이력 및 영향도 분석 ===================== -->
+  <!-- ===================== 두 번째 화면: 피크이력 및 영향도 분석 (모두 실측) ===================== -->
   <section class="scr" id="s-history" hidden>
-    <!-- 상단: 실측으로 만든 최고관리자 보고서 (일간·주간·월간·연간) -->
+    <!-- 상단: 최고관리자 보고서 — 피크 변동기록 | 영향도 Top 10 | 피크 시각 평소 대비 증가 Top 10 -->
     <div class="card" id="rep">
-      <h2>최고관리자 보고서 <span class="sub">실측 기준 · 전체 피크 변동기록 + 피크 시각 기여도 Top 10 · 스프레드시트(.xlsx) 보기·내려받기·출력</span></h2>
+      <h2>최고관리자 보고서 <span class="sub">실측 기준 · 피크 변동기록 + 피크 시각 영향도 Top 10 + 평소 대비 증가 Top 10 · 스프레드시트(.xlsx) 보기·내려받기·출력</span></h2>
       <div class="repctl">
         <div class="seg" role="group" aria-label="보고 기간">
           <button type="button" data-p="day">일간</button><button type="button" data-p="week" aria-pressed="true">주간</button><button type="button" data-p="month">월간</button><button type="button" data-p="year">연간</button>
@@ -106,25 +106,26 @@
         <button type="button" id="repdl" class="btn">스프레드시트 보기·출력</button>
         <span class="note" id="repinfo">—</span>
       </div>
-      <div class="repgrid">
+      <div class="repgrid3">
         <div><h3>피크 변동기록 <span class="sub" id="repunit">—</span></h3><div class="tscroll"><table class="perf click" id="reprec"></table></div></div>
-        <div><h3>기여도 Top 10 <span class="sub" id="reppk">—</span></h3><div class="tscroll"><table class="perf" id="reptop"></table></div></div>
+        <div><h3>영향도 Top 10 <span class="sub" id="reppk">—</span></h3><div class="tscroll"><table class="perf" id="reptop"></table></div></div>
+        <div><h3>평소 대비 증가 Top 10 <span class="sub" id="risesub">—</span></h3><div class="tscroll"><table class="perf" id="reprise"></table></div></div>
       </div>
-      <p class="note">줄을 누르면 아래 배치도·영향요인이 그 날(구간)의 피크 시각으로 바뀝니다. 건물 합계 = 96개 계측채널 단순합. 기여도 = 피크 시각 사용 비중(인과 영향·요금 배분율과 다름, 기업 3차 멘토링 답변 ④).</p>
+      <p class="note">줄을 누르면 오른쪽 두 표와 아래 배치도·영향도가 그 구간의 피크 시각으로 바뀝니다. 건물 합계 = 96개 계측채널 단순합. 영향도 = 피크 시각 사용량과 건물 합계 대비 비중. 평소 = 같은 요일·같은 시각 직전 4주 실측 평균, 증가 = 그 시각 실측 − 평소 (그날 유독 더 써서 피크를 만든 채널).</p>
     </div>
-    <!-- 하단: 위에서 고른 피크 시각의 층별 호실 배치도 + 전체 및 채널별 영향요인 (반반, 빈 칸 없이) -->
+    <!-- 하단: 고른 피크 시각의 층별 호실 배치도 + 전체 및 채널별 영향도 (모두 실측) -->
     <div class="grid2 histgrid">
       <div class="card">
         <h2>층별 호실 배치도 <span class="sub" id="snapt">—</span></h2>
         <div class="plan" id="plan"></div>
         <div class="share" id="snapshare"></div>
-        <p class="note">색이 진할수록 그 시각 사용량이 큼 · 빨간 테두리 = 그 시각 호실 Top 5 · 칸을 누르면 오른쪽 영향요인이 그 호실로 바뀝니다.</p>
+        <p class="note">색이 진할수록 그 시각 사용량이 큼 · 빨간 테두리 = 그 시각 호실 Top 5 · 칸을 누르면 오른쪽 영향도가 그 호실로 바뀝니다.</p>
       </div>
       <div class="card">
-        <h2>전체 및 채널별 영향요인 <span class="sub" id="fct">—</span></h2>
+        <h2>전체 및 채널별 영향도 <span class="sub" id="fct">—</span></h2>
         <div class="chctl"><label for="fsel">대상</label><select id="fsel" aria-label="전체 또는 채널 선택"></select></div>
-        <svg id="fchart" viewBox="0 0 600 330" role="img" aria-label="영향요인"></svg>
-        <p class="note">그 피크 시각을 1시간 전에 예측할 때(LightGBM) 각 입력값이 예측을 얼마나 올렸는지(주황) 내렸는지(회색) kW로 보여 줍니다. SHAP(SHapley Additive exPlanations, 예측 기여도 설명).</p>
+        <svg id="fchart" viewBox="0 0 600 330" role="img" aria-label="실측 영향도"></svg>
+        <p class="note" id="fnote">—</p>
       </div>
     </div>
   </section>

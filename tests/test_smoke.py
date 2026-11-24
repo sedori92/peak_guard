@@ -83,7 +83,7 @@ def test_upload_is_idempotent():
 
 
 def test_report_peaks_and_xlsx(day):
-    """[10] 최고관리자 보고서: 일·주·월·연 피크 변동기록 + 기여도 Top10, 스프레드시트."""
+    """[10] 최고관리자 보고서: 일·주·월·연 피크 변동기록 + 영향도 Top10 + 평소 대비 증가, 스프레드시트."""
     for period, n_min in (("day", 12), ("week", 5), ("month", 15), ("year", 3)):
         r = client.get("/api/report/peaks", params={"period": period, "date": day}).json()
         assert len(r["records"]) >= n_min, period
@@ -93,7 +93,7 @@ def test_report_peaks_and_xlsx(day):
     assert x.status_code == 200 and x.content[:2] == b"PK"
     from openpyxl import load_workbook
     wb = load_workbook(io.BytesIO(x.content))
-    assert wb.sheetnames == ["요약", "피크 변동기록", "기여도 Top10", "15분 기록"]
+    assert wb.sheetnames == ["요약", "피크 변동기록", "영향도 Top10", "평소 대비 증가 Top10", "15분 기록"]
 
 
 def test_split_and_models(day):
@@ -133,13 +133,15 @@ def test_performance_screen():
 
 
 def test_history_screen(day):
-    """두 번째 화면: 배치도(그 시각 96개 채널) + 전체·채널별 영향요인."""
+    """두 번째 화면(모두 실측): 배치도 + 평소 대비 증가 Top 10 + 전체·채널별 영향도(폭포 그래프가 실측으로 맞아떨어짐)."""
     t = client.get("/api/report/peaks", params={"period": "day", "date": day}).json()["summary"]["peak_time"]
     s = client.get("/api/snapshot", params={"time": t}).json()
     assert s["n_channels"] == 96 and abs(s["rooms_kw"] + s["common_kw"] - s["total_kw"]) < 0.05
+    r = client.get("/api/rise", params={"time": t}).json()
+    assert len(r["rows"]) == 10 and abs(r["usual_total_kw"] + r["rise_total_kw"] - r["total_kw"]) < 0.02
     for series in ("TOTAL", s["channels"][0]["channel"]):
-        f = client.get("/api/factors", params={"time": t, "series": series}).json()
-        assert f["items"] and abs(f["base_kw"] + sum(x["kw"] for x in f["items"]) - f["pred_kw"]) < 0.05
+        f = client.get("/api/influence", params={"time": t, "series": series}).json()
+        assert abs(f["base_kw"] + sum(x["kw"] for x in f["items"]) - f["actual_kw"]) < 0.01
 
 
 def test_contacts_and_alerts():

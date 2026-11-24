@@ -3,8 +3,9 @@
   GET /api/report/peaks?period=day|week|month|year&date=   상단 '최고관리자 보고서' (실측만, 피크 변동기록 + 기여도 Top 10)
   GET /api/report/xlsx?period=&date=                       같은 내용 스프레드시트(.xlsx) 내려받기
   GET /api/snapshot?time=YYYY-MM-DD HH:MM                  하단 '층별 호실 배치도' — 그 시각 채널별 실측과 비중
-  GET /api/factors?time=&series=TOTAL|M008-04              하단 '전체 및 채널별 영향요인' — 그 시각을 1시간 전에 예측할 때
-                                                           각 입력값이 예측을 얼마나 올리고 내렸는지 (LightGBM, SHAP)
+  GET /api/rise?time=                                      상단 '피크 시각 평소 대비 증가 Top 10' (실측 − 평소)
+  GET /api/influence?time=&series=TOTAL|M008-04            하단 '전체 및 채널별 영향도' — 그 시각 실측이 평소보다 높아진 몫 (실측만)
+  GET /api/factors?time=&series=                           (참고용) 1시간 전 LightGBM 예측의 SHAP — 화면에서는 쓰지 않음
 """
 from __future__ import annotations
 
@@ -116,10 +117,32 @@ def snapshot(time: str = Query(..., description="YYYY-MM-DD HH:MM")):
             "common_kw": num(tot - rsum, 2), "n_channels": int(len(d)), "channels": out}
 
 
-@router.get("/factors")
+@router.get("/rise")
+def rise(time: str = Query(..., description="피크 시각 YYYY-MM-DD HH:MM")):
+    """'피크 시각 평소 대비 증가 Top 10' — 채널별 (그 시각 실측 − 같은 요일·시각 직전 4주 평균). 실측만."""
+    from ..reports.influence import rise_top
+    try:
+        return rise_top(time)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.get("/influence")
+def influence(time: str = Query(..., description="피크 시각 YYYY-MM-DD HH:MM"),
+              series: str = Query("TOTAL", description="TOTAL(건물 전체) 또는 채널 (예: M008-04)")):
+    """'전체 및 채널별 영향도' — 그 시각 실측이 평소보다 높아진 것을 나눠 보여 줌 (폭포 그래프, 실측만).
+    전체: 평소 건물 합계 + 채널별 증가 = 실측 / 채널: 최근 4주 같은 시각 평균 + 요일·최근 1주·당일 차이 = 실측"""
+    from ..reports.influence import influence as calc
+    try:
+        return calc(time, series)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.get("/factors", include_in_schema=True)
 def factors(time: str = Query(..., description="피크 시각 YYYY-MM-DD HH:MM"),
             series: str = Query("TOTAL", description="TOTAL(건물 전체) 또는 채널 (예: M008-04)")):
-    """그 시각을 1시간 전에 예측할 때 입력값별 기여도(kW). LightGBM 기준."""
+    """(참고용, 화면에서는 쓰지 않음) 그 시각을 1시간 전에 예측할 때 입력값별 기여(kW). LightGBM SHAP."""
     from ..live.predictor import _load, grid
     g = grid(engine)
     t = pd.Timestamp(time)

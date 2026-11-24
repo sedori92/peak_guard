@@ -22,7 +22,7 @@ def export(date: str = DEFAULT_DATE, model: str = DEFAULT_MODEL, out: str | None
     - 첫 번째 화면: 시험기간 모든 날 × 4개 모델 × 2개 방식 재생 (재생 기준일·방식·모델 콤보버튼 모두 동작)
                     실시간 연결·연락처 관리·경보 발령은 서버가 있어야 함
     - 두 번째 화면: 시험기간 각 날을 기준일로 한 일간·주간·월간·연간 보고서, 표의 각 피크 시각 배치도와 건물 전체 영향요인
-                    (호실별 영향요인은 각 보고서의 최대 피크 시각만)
+                    (호실별 영향도는 각 보고서의 최대 피크 시각만)
     - 세 번째 화면: 모델성능 및 오경보율 비교 전체
     파일 크기를 줄이려고 실측은 날마다 한 번만, 예측은 모델마다 따로 담고 화면(common.js)에서 다시 합칩니다.
     """
@@ -85,11 +85,13 @@ def export(date: str = DEFAULT_DATE, model: str = DEFAULT_MODEL, out: str | None
     for t in sorted(times):
         try:
             api["api/snapshot?time=" + enc(t)] = history.snapshot(t)
-            for sid in ["TOTAL"] + (rooms if t in peaks else []):
+            for path, fn in (("api/rise?time=" + enc(t), lambda: history.rise(t)),
+                             *[(f"api/influence?time={enc(t)}&series={enc(sid)}", (lambda sid=sid: history.influence(t, sid)))
+                               for sid in ["TOTAL"] + (rooms if t in peaks else [])]):
                 try:
-                    api[f"api/factors?time={enc(t)}&series={enc(sid)}"] = history.factors(t, sid)
-                except Exception as e:                                     # 예측이 불가했던 시각 등 → 화면에 이유 표시
-                    api[f"api/factors?time={enc(t)}&series={enc(sid)}"] = {"__error": getattr(e, "detail", str(e))}
+                    api[path] = fn()
+                except Exception as e:                                     # '평소'를 계산할 수 없는 시각 등 → 화면에 이유 표시
+                    api[path] = {"__error": getattr(e, "detail", str(e))}
         except Exception:                                                  # 그 시각 자료가 없으면 건너뜀
             pass
     print(f"  보고서 {len(dates) * 4}개 · 피크 시각 {len(times)}개")

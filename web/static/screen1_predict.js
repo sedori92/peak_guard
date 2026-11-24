@@ -92,7 +92,8 @@
     if (f.thr == null) $('#thr').textContent = '—'; else setv('#thr', fmt(f.thr, 2), 'kW');
     const o = S.thrOpts[S.thrKey];
     // 기준값 설명: 그 기간 15분 값 N개를 크기순으로 세웠을 때 상위 5%가 시작되는 경계 (최대값의 95%가 아님)
-    $('#thrnote').textContent = o ? `${o.name} 15분 값 ${(o.n || 0).toLocaleString()}개 중 상위 5% 경계 (${o.period})` + (S.live && S.thrKey === 'recent30' && f.thr_note ? ` · ${f.thr_note}` : '') : (f.thr_note || '');
+    $('#thrnote').textContent = o ? `${o.name} 15분 값 ${(o.n || 0).toLocaleString()}개 중 상위 5% 경계` + (S.live && S.thrKey === 'recent30' && f.thr_note ? ` · ${f.thr_note}` : '') : (f.thr_note || '');
+    $('#thrnote').title = o ? `기간 ${o.period} (${o.days}일치)` : '';
   }
   const setv = (sel, v, u) => { const e = $(sel); if (e.dataset.v !== v) { e.dataset.v = v; e.replaceChildren(document.createTextNode(v), Object.assign(document.createElement('small'), { textContent: u })); e.classList.remove('flash'); void e.offsetWidth; e.classList.add('flash'); } };
   // 상태 띠 ① 현재 피크: 한전 방식 최대수요전력(전날까지) — 오늘 실측이 넘으면 오늘 값으로
@@ -102,7 +103,8 @@
     let kw = base.kw, when = base.time, note = base.basis;
     S.history().forEach((x) => { if (x.y != null && x.y > kw) { kw = x.y; when = `${S.live ? S.live.frame.date : S.DATA.date} ${x.t}`; note = '오늘 새 최대'; } });
     setv('#pk', fmt(kw, 2), 'kW');
-    $('#pks').textContent = `${when.slice(5)} · ${note}`;
+    $('#pks').textContent = `${when.slice(5)} · ${note === '오늘 새 최대' ? note : '여름·겨울·당월 최대'}`;
+    $('#pks').title = note;
     $('#status').classList.toggle('newpeak', note === '오늘 새 최대');
   }
   // 상태 띠 ④: 현재 수요전력 (직전 15분 평균, 96개 계측채널 합산)

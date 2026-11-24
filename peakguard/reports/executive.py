@@ -1,4 +1,4 @@
-"""[10] 보고서 — 최고관리자 보고용 피크 변동기록 + 기여도 Top10 (스프레드시트)
+"""[10] 보고서 — 최고관리자 보고용 피크 변동기록 + 영향도 Top10 (스프레드시트)
 
     python run.py 10x --period month --date 2026-10-15       # reports/피크보고서_month_2026-10-01.xlsx
     GET /api/report/peaks?period=day|week|month|year&date=    # 화면 미리보기(JSON)
@@ -13,7 +13,7 @@
 계산 기준 (기업 3차 멘토링 답변 ④ 적용)
     - 건물 합계 = 96개 계측채널을 같은 15분 시각끼리 더한 '96개 채널 단순합 수요전력' (96개가 모두 수신된 칸만)
     - 피크 = 그 기간 건물 합계의 최댓값, 피크 기준 = 그날의 직전 30일 P95
-    - 기여도 = 피크 발생 시각의 채널별 수요전력 ÷ 건물 합계 (사용 비중이며 요금 배분율·인과 영향과는 다름)
+    - 영향도 = 피크 발생 시각의 채널별 수요전력 ÷ 건물 합계 (사용 비중이며 요금 배분율·인과 영향과는 다름)
     - 호실 비중 = 호실 34개 채널 합계를 분모로 한 비중 (건물 전체 비중과 구분)
 """
 from __future__ import annotations
@@ -147,7 +147,7 @@ def build(period: str, date: str) -> dict:
 
 
 def to_xlsx(r: dict) -> bytes:
-    """보고서 dict → 엑셀 파일 (요약 · 피크 변동기록 · 기여도 Top10 · 15분 기록)."""
+    """보고서 dict → 엑셀 파일 (요약 · 피크 변동기록 · 영향도 Top10 · 평소 대비 증가 Top10 · 15분 기록)."""
     from openpyxl import Workbook
     from openpyxl.chart import BarChart, LineChart, Reference
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -196,14 +196,14 @@ def to_xlsx(r: dict) -> bytes:
             ws.cell(i, 2).number_format = f
     n = 6 + len(items) + 1
     for k, t in enumerate(["※ 건물 합계는 96개 채널 단순합이며 한전 공식 최대수요전력과 같은 값이 아닙니다 (기업 3차 답변).",
-                           "※ 기여도는 피크 시각의 사용 비중이며, 인과적 영향이나 전기요금 배분율과는 다릅니다.",
+                           "※ 영향도는 피크 시각의 사용 비중이며, 인과적 영향이나 전기요금 배분율과는 다릅니다.",
                            f"※ 데이터 수집 중단 구간(2026-10-06 15:00 ~ 10-20 15:00)은 계산에서 빠집니다."]):
         ws.cell(n + k, 1, t).font = Font(color="6B7280", size=9)
 
     # 2) 피크 변동기록
     ws = wb.create_sheet("피크 변동기록")
     hd = [f"구간({r['unit']})", "최대 피크(kW)", "발생 시각", "피크 기준(kW)", "기준 초과", "초과 15분 칸",
-          "평균(kW)", "사용량(kWh)", "수신 칸", "최대 기여 채널", "구분", "기여 kW", "건물 대비(%)"]
+          "평균(kW)", "사용량(kWh)", "수신 칸", "최대 영향 채널", "구분", "영향 kW", "건물 대비(%)"]
     rows = [[x["label"], x["peak_kw"], x["peak_time"], x["threshold_kw"], "초과" if x["over"] else "", x["over_slots"],
              x["avg_kw"], x["energy_kwh"], x["slots"], x["top_name"], x["top_kind"], x["top_kw"], x["top_share"]]
             for x in r["records"]]
@@ -224,17 +224,17 @@ def to_xlsx(r: dict) -> bytes:
         ch.series[0].graphicalProperties.line.solidFill = "F97316"
         ws.add_chart(ch, f"A{len(rows) + 4}")
 
-    # 3) 기여도 Top10
-    ws = wb.create_sheet("기여도 Top10")
+    # 3) 영향도 Top10
+    ws = wb.create_sheet("영향도 Top10")
     ws["A1"] = f"기간 최대 피크 {sm.get('peak_kw')} kW ({sm.get('peak_time')}) 시각의 채널별 수요전력 상위 10"
     ws["A1"].font = Font(bold=True)
-    rows = [[x["rank"], x["name"], x["kind"], x["floor"], x["channel"], x["kw"], x["share_building"], x["share_rooms"]]
+    rows = [[x["rank"], x["name"], x["kind"], x["floor"], x["channel"], x["kw"], x["share_building"]]
             for x in r["top10"]]
-    table(ws, 3, ["순위", "채널", "구분", "층", "채널 ID", "피크 시각 kW", "건물 합계 대비(%)", "호실 34개 대비(%)"],
-          rows, [7, 16, 8, 6, 13, 13, 16, 16], {6: "0.000", 7: "0.0", 8: "0.0"})
+    table(ws, 3, ["순위", "채널", "구분", "층", "채널 ID", "피크 시각 kW", "건물 합계 대비(%)"],
+          rows, [7, 16, 8, 6, 13, 13, 16], {6: "0.000", 7: "0.0"})
     if rows:
         bc = BarChart()
-        bc.type, bc.title, bc.height, bc.width = "bar", "피크 시각 기여도 Top10 (건물 합계 대비 %)", 8, 18
+        bc.type, bc.title, bc.height, bc.width = "bar", "피크 시각 영향도 Top10 (건물 합계 대비 %)", 8, 18
         bc.add_data(Reference(ws, min_col=7, min_row=3, max_row=len(rows) + 3), titles_from_data=True)
         bc.set_categories(Reference(ws, min_col=2, min_row=4, max_row=len(rows) + 3))
         bc.y_axis.title = "%"
@@ -242,7 +242,24 @@ def to_xlsx(r: dict) -> bytes:
         bc.legend = None
         ws.add_chart(bc, f"A{len(rows) + 6}")
 
-    # 4) 15분 기록
+    # 4) 평소 대비 증가 Top10 (같은 요일·시각 직전 4주 평균과 비교, 실측만)
+    ws = wb.create_sheet("평소 대비 증가 Top10")
+    try:
+        from .influence import rise_top
+        rt = rise_top(sm.get("peak_time")) if sm.get("peak_time") else None
+    except ValueError:
+        rt = None
+    if rt:
+        ws["A1"] = (f"피크 시각 {rt['time']} 건물 {rt['total_kw']} kW = 평소 {rt['usual_total_kw']} kW + 증가 {rt['rise_total_kw']} kW "
+                    f"(평소 = 같은 요일·시각 직전 4주 평균: {', '.join(rt['weeks'])})")
+        ws["A1"].font = Font(bold=True)
+        table(ws, 3, ["순위", "채널", "구분", "피크 시각 kW", "평소 kW", "증가 kW", "증가율(%)"],
+              [[x["rank"], x["name"], x["kind"], x["kw"], x["usual_kw"], x["rise_kw"], x["rise_pct"]] for x in rt["rows"]],
+              [7, 16, 8, 13, 11, 11, 11], {4: "0.000", 5: "0.000", 6: "+0.000;-0.000", 7: "0"})
+    else:
+        ws["A1"] = "직전 4주 같은 요일·시각 실측이 없어 '평소'를 계산할 수 없습니다."
+
+    # 5) 15분 기록
     ws = wb.create_sheet("15분 기록")
     rows = [[x["time"], x["kw"], x["threshold_kw"], "초과" if x["threshold_kw"] and x["kw"] >= x["threshold_kw"] else ""]
             for x in r["series"]]

@@ -317,3 +317,18 @@ button.btn{border:0;cursor:pointer;font:inherit;font-size:13px;font-weight:600}
   body.printing-sheet .sheetbody{max-height:none;overflow:visible;border:0}
   body.printing-sheet table.sheet td,body.printing-sheet table.sheet th{color:#000;border-color:#999}
 }
+
+/* ---- 5차 수정: 보고서 3칸 (피크 변동기록 | 영향도 Top 10 | 평소 대비 증가 Top 10) ---- */
+.repgrid3{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr);gap:18px}
+.repgrid3 table.perf th,.repgrid3 table.perf td{padding:6px 6px;font-size:12.5px}
+.repgrid3 table.perf td:nth-child(2),.repgrid3 table.perf th:nth-child(2){text-align:left}
+.repgrid3 .tscroll{max-height:330px}
+@media (max-width:1100px){.repgrid3{grid-template-columns:1fr}}
+/* 5차: 공간 배치 다듬기 */
+.status{grid-template-columns:minmax(0,.9fr) minmax(0,1fr) minmax(0,1.6fr) minmax(0,.9fr)}
+.status .msg{line-height:1.45}
+#t5chart{height:320px}
+.repgrid3 .tscroll{max-height:380px}
+#snapshare div:last-child{min-width:96px}
+#perfsections{display:flex;flex-direction:column;gap:14px}
+.histgrid .card{min-height:100%}
