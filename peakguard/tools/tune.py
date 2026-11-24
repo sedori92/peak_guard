@@ -7,7 +7,8 @@
 대상: 선정 방식인 '채널별 합산 후 예측'(건물 합계 한 줄을 바로 예측)의 4개 모델.
       학습기간으로 학습 → 검증기간(2026-09-15 ~ 10-06) 건물 합계 MAE 로 비교. 시험기간은 보지 않음.
 결과: models/tuning.json  (docs/TUNING.md 는 peakguard.tools.model_report 가 함께 씀)
-판단: 현재 설정보다 검증 MAE 가 2% 이상 좋은 설정이 있으면 '교체 후보', 아니면 '현재 설정 유지'.
+판단: 현재 설정보다 검증 MAE 가 2% 이상 좋은 설정이 있으면 교체(모델 파일의 PARAMS_TOTAL 에 반영 후 재학습), 아니면 유지.
+주의: GRID 첫 줄('현재')은 반영 전 처음 설정입니다. 반영 후 다시 돌리면 첫 줄을 새 설정으로 바꾸세요.
 """
 from __future__ import annotations
 
@@ -147,8 +148,11 @@ def main() -> None:
         cur = rows[0]["val_mae"]
         best = min(rows, key=lambda r: r["val_mae"])
         gain = (cur - best["val_mae"]) / cur * 100
+        app = best["cfg"] if gain >= 2 else rows[0]["cfg"]
+        for r in rows:
+            r["applied"] = r["cfg"] == app
         res[name] = {"rows": rows, "best": best["cfg"], "gain_pct": round(gain, 1),
-                     "decision": "현재 설정 유지" if gain < 2 else "교체 후보 (검증 MAE 2% 이상 개선)"}
+                     "decision": "현재 설정 유지 (차이 2% 미만)" if gain < 2 else "검증 MAE가 가장 작은 설정으로 교체"}
     out = {"period": {"train_to": TRAIN_END, "val": [VAL_START, VAL_END], "val_issues": int(len(va))},
            "rule": "학습기간으로 학습, 검증기간 건물 합계 MAE 비교 (시험기간 미사용). 2% 이상 좋으면 교체 후보.",
            "models": res}

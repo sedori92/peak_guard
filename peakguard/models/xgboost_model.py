@@ -17,12 +17,13 @@ from .features import FEAT_COLS
 PARAMS = dict(learning_rate=0.05, max_depth=7, min_child_weight=20, subsample=0.8, colsample_bytree=0.8,
               tree_method="hist", random_state=SEED, n_jobs=-1)
 N_TREES = {"TOTAL": 800, "CHANNEL": 600}
+PARAMS_TOTAL = {**PARAMS, "max_depth": 4}             # 건물 직접 모델: 검증기간 설정값 비교로 정함 (docs/TUNING.md)
 
 
 def fit(df: pd.DataFrame, channel_scope: bool):
     """학습: 건물 직접(channel_scope=False) 또는 채널 공동(True) 모델."""
     from xgboost import XGBRegressor
-    m = XGBRegressor(n_estimators=N_TREES["CHANNEL" if channel_scope else "TOTAL"], **PARAMS)
+    m = XGBRegressor(n_estimators=N_TREES["CHANNEL" if channel_scope else "TOTAL"], **(PARAMS if channel_scope else PARAMS_TOTAL))
     m.fit(df[FEAT_COLS], df["y"])
     return m
 
