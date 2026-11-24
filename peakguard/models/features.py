@@ -36,8 +36,11 @@ def features(g: Grid, s: int, issues: np.ndarray, scale: float) -> pd.DataFrame:
     base["d1"] = base["y0"] - base["y1"]
     # 기상 (기상청 ASOS 광주 관측) — 예측 시점에 이미 관측된 값만 사용 (미래 기온은 쓰지 않음)
     #   기온 그대로가 아니라 '평소(최근 7일 평균) 대비'와 '1시간 변화'로 넣음 (grid.py 설명 참고)
-    t_arr = g.temp if g.temp is not None else np.full(len(g.times), np.nan)
-    a_arr = g.tanom if g.tanom is not None else np.full(len(g.times), np.nan)
+    #   config.USE_WEATHER=False(현재)이면 비워 둠 → 모델이 쓰지 않음
+    nan = np.full(len(g.times), np.nan)
+    on = bool(getattr(g, "use_weather", False))
+    t_arr = g.temp if (on and g.temp is not None) else nan
+    a_arr = g.tanom if (on and g.tanom is not None) else nan
     base["tanom"] = _take(a_arr, issues)
     base["dtemp"] = _take(t_arr, issues) - _take(t_arr, issues - 4)
     base["max1h"] = np.nanmax(np.vstack([base[k] for k in ("y0", "y1", "y2", "y3")]), axis=0)

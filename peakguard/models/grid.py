@@ -43,10 +43,13 @@ class Grid:
     hum: np.ndarray = None     # (T,) 습도 %
     prep: dict = None          # 전처리 기록 (음수 건수·비율 등)
     tanom: np.ndarray = None   # (T,) 기온 평소 대비 (직전 7일 평균과 차이)
+    use_weather: bool = False  # 예측 입력에 기상을 쓸지 (config.USE_WEATHER). 기상 값 자체는 분석용으로 항상 읽음
 
 
-def load_grid(engine, weather: bool = True) -> Grid:
-    """weather=False 이면 기온·습도를 비워 둠 (기상 미포함 비교 학습용)."""
+def load_grid(engine, use_weather: bool | None = None) -> Grid:
+    """use_weather: 예측 입력에 기상을 쓸지 (None 이면 config.USE_WEATHER). 기온·습도는 분석용으로 항상 읽음."""
+    from ..config import USE_WEATHER
+    use_weather = USE_WEATHER if use_weather is None else use_weather
     with engine.connect() as con:
         m = pd.read_sql(text("SELECT channel_id, measured_at, power_kw, demand_kw FROM measurement"), con)
         ch = pd.read_sql(text("SELECT channel_id, meter_id, is_active FROM channel"), con)
@@ -79,7 +82,7 @@ def load_grid(engine, weather: bool = True) -> Grid:
             "short_interpolated_cells": short, "long_gap_cells": int(gap.to_numpy().sum()),
             "excluded_issue_slots_total": int(p_bad[0].sum())}
     temp = hum = np.full(len(times), np.nan)
-    if weather:
+    if True:
         with engine.connect() as con:
             w = pd.read_sql(text("SELECT measured_at, temperature_c, humidity_pct FROM weather_15m"), con)
         if len(w):
@@ -93,7 +96,7 @@ def load_grid(engine, weather: bool = True) -> Grid:
     off = hol | (times.dayofweek >= 5)
     rooms_all = ch.loc[ch.meter_id.isin(ROOM_METERS), "channel_id"].sort_values().tolist()
     return Grid(times, ["TOTAL"] + active, y, yi, pi, off, hol, rooms_all,
-                set(ch.loc[~ch.is_active.astype(bool), "channel_id"]), p_bad, temp, hum, prep, tanom)
+                set(ch.loc[~ch.is_active.astype(bool), "channel_id"]), p_bad, temp, hum, prep, tanom, use_weather)
 
 
 def thresholds(g: Grid) -> pd.Series:

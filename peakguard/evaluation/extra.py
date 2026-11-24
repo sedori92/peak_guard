@@ -88,20 +88,32 @@ def by_condition() -> dict:
 
 
 def weather_compare(perf_rows: dict) -> dict | None:
-    f = MODEL_DIR / "compare_no_weather.json"
+    """현재 모델(config.USE_WEATHER)과 반대 조건 비교 학습(models/compare_weather.json)을 나란히 놓음."""
+    from ..config import USE_WEATHER
+    f = MODEL_DIR / "compare_weather.json"
     if not f.exists():
         return None
-    nw = json.loads(f.read_text(encoding="utf-8"))
+    cmp = json.loads(f.read_text(encoding="utf-8"))
+    other, cw = cmp["models"], bool(cmp["weather"])
     rows = []
     for mid, r in perf_rows.items():
-        if mid not in nw or mid == BASE_DAY:
+        if mid not in other or mid == BASE_DAY:
             continue
-        rows.append({"id": mid, "name": DISPLAY.get(mid, mid), "mae_w": r["mae"], "mae_nw": round(nw[mid]["mae"], 3),
-                     "recall_w": r["peak"]["recall"] if r.get("peak") else None, "recall_nw": round(nw[mid]["recall"], 4),
-                     "tp_w": r["peak"]["tp"] if r.get("peak") else None, "tp_nw": nw[mid]["tp"],
-                     "fp_w": r["peak"]["fp"] if r.get("peak") else None, "fp_nw": nw[mid]["fp"]})
-    return {"rows": rows, "note": "기상 포함 = 예측 시점까지 관측된 기온의 '평소(최근 7일 평균) 대비'와 '1시간 변화'를 입력으로 넣은 현재 모델. "
-                                  "미포함 = 같은 설정에서 기상만 뺀 비교 학습 (최근 30일 기준, 같은 시험기간)."}
+        cur = {"mae": r["mae"], "val_mae": r.get("val_mae"), "tp": r["peak"]["tp"] if r.get("peak") else None,
+               "fp": r["peak"]["fp"] if r.get("peak") else None, "fn": r["peak"]["fn"] if r.get("peak") else None,
+               "recall": r["peak"]["recall"] if r.get("peak") else None}
+        o = {k: (round(v, 4) if isinstance(v, float) else v) for k, v in other[mid].items()}
+        w, nw = (o, cur) if cw else (cur, o)
+        rows.append({"id": mid, "name": DISPLAY.get(mid, mid),
+                     "mae_w": w["mae"], "mae_nw": nw["mae"], "val_w": w["val_mae"], "val_nw": nw["val_mae"],
+                     "recall_w": w["recall"], "recall_nw": nw["recall"], "tp_w": w["tp"], "tp_nw": nw["tp"],
+                     "fp_w": w["fp"], "fp_nw": nw["fp"]})
+    better = sum(1 for r in rows if r["val_w"] is not None and r["val_nw"] is not None and r["val_w"] < r["val_nw"])
+    return {"rows": rows, "use_weather": USE_WEATHER, "val_better_with": better, "n": len(rows),
+            "note": "기상 포함 = 예측 시점까지 관측된 기온의 '평소(최근 7일 평균) 대비'와 '1시간 변화'를 입력에 넣어 학습. "
+                    "미포함 = 같은 설정에서 기상만 뺀 학습. 같은 학습·검증·시험기간, 피크 기준 최근 30일.",
+            "decision": (f"채택 판단은 검증기간 MAE로: 기상 포함이 더 좋은 모델 {better}/{len(rows)}개 → "
+                         + ("예측 입력에 기상 사용" if USE_WEATHER else "예측 입력에서 기상 미채택 (수집·업데이트·분석은 계속, 겨울 자료로 재검증)"))}
 
 
 def selection(sections: list[dict]) -> dict:
@@ -138,3 +150,26 @@ def selection(sections: list[dict]) -> dict:
     return {"best": best["id"], "best_method": best["method"], "lines": lines,
             "ranking": [{"name": f"{c['method_name']} · {c['name']}", "recall": c["peak"]["recall"], "precision": c["peak"]["precision"],
                          "fp": c["peak"]["fp"], "f1": c["f1"], "mae": c["mae"], "gain": c["gain"]} for c in cand[:6]]}
+
+
+def weather_summary() -> dict:
+    """두 번째 화면 '기상 데이터 검토' 칸: 연계 상태 + 모델 비교 결론 (세 번째 화면 ⑤ 요약)."""
+    from ..api.common import q
+    from ..config import USE_WEATHER
+    w = q("SELECT MIN(measured_at) a, MAX(measured_at) b, COUNT(temperature_c) n FROM weather_15m")
+    out = {"from": str(w.a[0])[:16] if len(w) else None, "to": str(w.b[0])[:16] if len(w) else None,
+           "slots": int(w.n[0]) if len(w) else 0, "use_weather": USE_WEATHER}
+    f = MODEL_DIR / "compare_weather.json"
+    if f.exists():
+        ev = q("SELECT model_name, mae FROM st_eval WHERE split='val' AND scope='TOTAL' AND horizon_min=0").set_index("model_name").mae
+        cmp = json.loads(f.read_text(encoding="utf-8"))
+        rows = []
+        for m, o in cmp["models"].items():
+            if m == BASE_DAY or m not in ev.index:
+                continue
+            cur = float(ev[m])
+            w_, nw_ = (o["val_mae"], cur) if cmp["weather"] else (cur, o["val_mae"])
+            rows.append((m, w_, nw_))
+        out["better_with"] = sum(1 for _, a, b in rows if a < b)
+        out["n"] = len(rows)
+    return out

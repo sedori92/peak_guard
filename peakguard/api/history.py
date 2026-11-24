@@ -124,7 +124,8 @@ def patterns(range: str = Query("all", pattern="^(all|90d|30d)$", description="ë
     from ..eda.analysis import analyze
     from ..live.predictor import _GRID, grid
     grid(engine)
-    return analyze(range, date, tuple(_GRID.get("key", ())))
+    from ..evaluation.extra import weather_summary
+    return {**analyze(range, date, tuple(_GRID.get("key", ()))), "weather_review": weather_summary()}
 
 
 @router.get("/rise")

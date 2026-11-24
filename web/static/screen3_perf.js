@@ -126,14 +126,13 @@
     if (D.weather) {
       const w = mk('div', 'card wide'); w.append(mk('h2', null, '⑤ 기상(기온) 포함 / 미포함 비교'));
       const t3 = mk('table', 'perf');
-      row(t3, ['방식 · 모델', 'MAE 포함', 'MAE 미포함', '차이', '맞힘 포함 / 미포함', '헛경보 포함 / 미포함', '재현율 포함 / 미포함'], true);
+      row(t3, ['방식 · 모델', '검증 MAE 포함 / 미포함', '시험 MAE 포함 / 미포함', '맞힘 포함 / 미포함', '헛경보 포함 / 미포함', '재현율 포함 / 미포함'], true);
       D.weather.rows.forEach((r) => {
-        const d = r.mae_w - r.mae_nw;
-        const tr = row(t3, [N[r.id] || r.name, fmt(r.mae_w, 3), fmt(r.mae_nw, 3), (d > 0 ? '+' : '') + fmt(d, 3), `${r.tp_w ?? '—'} / ${r.tp_nw}`, `${r.fp_w ?? '—'} / ${r.fp_nw}`, `${pct(r.recall_w, 0)} / ${pct(r.recall_nw, 0)}`]);
-        if (d < 0) tr.classList.add('best');
+        const tr = row(t3, [N[r.id] || r.name, `${fmt(r.val_w, 3)} / ${fmt(r.val_nw, 3)}`, `${fmt(r.mae_w, 3)} / ${fmt(r.mae_nw, 3)}`, `${r.tp_w ?? '—'} / ${r.tp_nw ?? '—'}`, `${r.fp_w ?? '—'} / ${r.fp_nw ?? '—'}`, `${pct(r.recall_w, 0)} / ${pct(r.recall_nw, 0)}`]);
+        if (r.val_w < r.val_nw) tr.classList.add('best');
       });
       const w3 = mk('div', 'tscroll'); w3.append(t3);
-      w.append(w3, mk('p', 'note', D.weather.note + ' 주황 줄 = 기상을 넣어 MAE가 줄어든 모델.' + (D.thr.key !== 'recent30' ? ' (맞힘·헛경보·재현율 비교는 최근 30일 기준에서만 표시)' : '')));
+      w.append(w3, mk('p', 'selbest small', D.weather.decision), mk('p', 'note', D.weather.note + ' 주황 줄 = 기상을 넣어 검증 MAE가 줄어든 모델.' + (D.thr.key !== 'recent30' ? ' (맞힘·헛경보·재현율은 최근 30일 기준에서만 정확히 비교됨)' : '')));
       wrap.append(w);
     }
     return wrap;

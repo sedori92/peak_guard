@@ -26,7 +26,7 @@ def main() -> None:
          "- 피크 기준: 직전 30일 건물 합계(96채널) 15분 수요전력의 95번째 백분위수 · 위험 = 다음 1시간 예측 4칸 중 하나라도 기준 이상",
          f"- 실제 피크 위험(실측 4칸 중 하나라도 기준 이상): {p['thr']['actual_risk']}건 / {p['thr']['n']:,}개 예측 시점",
          f"- 전처리: 현재전력 음수 {inf['prep']['power_negative']:,}건({inf['prep']['power_negative_pct']}%) 결측 처리, 긴 결측 {inf['prep']['long_gap_cells']:,}칸 학습 제외",
-         "- 입력: 직전 수요·현재전력·전일/전주 같은 시각·시간·요일·공휴일 + 기온 평소 대비·1시간 변화", "",
+         f"- 입력: 직전 수요·현재전력·전일/전주 같은 시각·시간·요일·공휴일 (기상: {'사용' if inf.get('weather') else '검증 결과 미채택 — 아래 비교 참고'})", "",
          "## 결론", ""]
     L += [f"- {x}" for x in p["selection"].get("lines", [p["selection"].get("text", "")])]
     for s in p["sections"]:
@@ -38,9 +38,10 @@ def main() -> None:
         na = s["no_alarm"]
         L.append(f"| 경보 없음(비교용) | — | — | — | — | 0 | {na['fn']} | 0 | 0% | — |")
     if p.get("weather"):
-        L += ["", "## 기상(기온) 포함 / 미포함", "", "| 모델 | MAE 포함 | MAE 미포함 | 재현율 포함 | 재현율 미포함 |", "|---|---|---|---|---|"]
+        L += ["", "## 기상(기온) 포함 / 미포함", "", f"- {p['weather']['decision']}", "",
+              "| 모델 | 검증 MAE 포함 | 검증 MAE 미포함 | 시험 MAE 포함 | 시험 MAE 미포함 | 재현율 포함 | 재현율 미포함 |", "|---|---|---|---|---|---|---|"]
         for r in p["weather"]["rows"]:
-            L.append(f"| {r['id']} | {r['mae_w']:.3f} | {r['mae_nw']:.3f} | {pct(r['recall_w'])} | {pct(r['recall_nw'])} |")
+            L.append(f"| {r['id']} | {r['val_w']:.3f} | {r['val_nw']:.3f} | {r['mae_w']:.3f} | {r['mae_nw']:.3f} | {pct(r['recall_w'])} | {pct(r['recall_nw'])} |")
     T = p["timing"]
     L += ["", f"## 예측시각과 실제 발생시각 오차 (실제 피크 사건 {T['events']}건)", "", "| 모델 | 사전 경보 | 평균 선행 | 평균 시각 오차 | ±15분 이내 |", "|---|---|---|---|---|"]
     for m, r in T["rows"].items():

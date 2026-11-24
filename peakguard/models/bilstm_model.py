@@ -23,8 +23,9 @@ def lstm_arrays(g: Grid, s: int, issues: np.ndarray, scale: float):
     k = np.arange(-SEQ + 1, 1)
     idx = issues[:, None] + k[None, :]                                     # (N, 24)
     ang = 2 * np.pi * (idx % DAY) / DAY
-    tmp = g.temp if g.temp is not None else np.full(len(g.times), np.nan)
-    tan = g.tanom if g.tanom is not None else np.full(len(g.times), np.nan)
+    on = bool(getattr(g, "use_weather", False))                 # config.USE_WEATHER=False 이면 기상 자리는 0
+    tmp = g.temp if (on and g.temp is not None) else np.full(len(g.times), np.nan)
+    tan = g.tanom if (on and g.tanom is not None) else np.full(len(g.times), np.nan)
     seq = np.stack([_take(yi, idx), _take(p, idx), np.sin(ang), np.cos(ang),
                     _take(g.offday.astype(float), idx),
                     _take(tan, idx) / 10.0, (_take(tmp, idx) - _take(tmp, idx - 4)) / 5.0], axis=2)   # 기온 평소 대비·1시간 변화

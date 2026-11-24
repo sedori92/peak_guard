@@ -46,17 +46,19 @@ RESULT_TABLES = ("st_forecast", "st_eval", "st_peak_eval", "st_channel_eval", "s
 def main() -> None:
     ap = argparse.ArgumentParser(description="다음 1시간(15분×4) 예측 학습·평가·저장")
     ap.add_argument("--skip-lstm", action="store_true")
-    ap.add_argument("--no-weather", action="store_true",
-                    help="기상(기온·습도)을 빼고 학습해 성능만 models/compare_no_weather.json 에 저장 (DB·모델 파일은 그대로)")
+    ap.add_argument("--compare", action="store_true",
+                    help="기상 사용을 config.USE_WEATHER 와 반대로 바꿔 학습하고 성능만 models/compare_weather.json 에 저장 (DB·모델 파일은 그대로)")
     a = ap.parse_args()
-    run(a.skip_lstm, compare_no_weather=a.no_weather)
+    run(a.skip_lstm, compare=a.compare)
 
 
-def run(skip_lstm: bool = False, compare_no_weather: bool = False) -> None:
-    """compare_no_weather=True: 기상 미포함 비교 실행 — 성능 요약만 JSON 으로 남기고 DB·모델 파일은 건드리지 않음."""
+def run(skip_lstm: bool = False, compare: bool = False) -> None:
+    """compare=True: 기상 포함/미포함 비교 실행 — 성능 요약만 JSON 으로 남기고 DB·모델 파일은 건드리지 않음."""
+    from ..config import USE_WEATHER
     t_start = time.time()
     engine = get_engine()
-    save = not compare_no_weather
+    save = not compare
+    use_w = (not USE_WEATHER) if compare else USE_WEATHER
     if save:
         with engine.begin() as con:                       # 결과 표는 구조가 바뀔 수 있어 새로 만듦
             for t in RESULT_TABLES:
@@ -65,10 +67,10 @@ def run(skip_lstm: bool = False, compare_no_weather: bool = False) -> None:
     fc_meta.create_all(engine)
 
     print("1) DB에서 15분 격자 만들기")
-    g = load_grid(engine, weather=not compare_no_weather)
+    g = load_grid(engine, use_weather=use_w)
     print(f"   현재전력 음수 {g.prep['power_negative']:,}건({g.prep['power_negative_pct']}%) → 결측 처리, "
           f"짧은 끊김 보간 {g.prep['short_interpolated_cells']:,}칸, 긴 결측 {g.prep['long_gap_cells']:,}칸(학습 제외) · "
-          f"기상 {'미포함' if compare_no_weather else f'포함 ({g.prep["weather_slots"]:,}칸)'}")
+          f"예측 입력 기상 {'포함' if use_w else '미포함'}{' (비교 실행)' if compare else ''}")
     T, S = len(g.times), len(g.series)
     pos = lambda ts: int(np.searchsorted(g.times, pd.Timestamp(ts)))   # noqa: E731
     tr_end, va_a, va_b, te_a, te_b = pos(TRAIN_END), pos(VAL_START), pos(VAL_END), pos(TEST_START), pos(TEST_END)
@@ -174,7 +176,8 @@ def run(skip_lstm: bool = False, compare_no_weather: bool = False) -> None:
                     ev_rows.append(dict(model_name=m, scope=scope, horizon_min=15 * h, split=k, **metrics(a, p, low),
                                         test_start=t_s, test_end=t_e))
             ok = cm[0].all(1) & ~np.isnan(day_thr)
-            peak_rows.append(dict(model_name=m, split=k, **peak_detection(A[0], P[m][0], day_thr, ok)))
+            # 저장되는 예측값(소수 넷째 자리)과 같은 값으로 판정 → 화면(피크 기준별 재판정)과 한 건도 다르지 않게
+            peak_rows.append(dict(model_name=m, split=k, **peak_detection(A[0], np.round(P[m][0], 4), day_thr, ok)))
             if k == "test" and m not in SUM_BASE:              # 채널별 시험 오차 (보조화면 호실 표)
                 for s in range(1, S):
                     c = cm[s]
@@ -195,8 +198,8 @@ def run(skip_lstm: bool = False, compare_no_weather: bool = False) -> None:
         out = {m: {"mae": float(te.loc[m, "mae"]), "val_mae": float(va.loc[m, "mae"]), "rmse": float(te.loc[m, "rmse"]),
                    "tp": int(pt.loc[m, "tp"]), "fn": int(pt.loc[m, "fn"]), "fp": int(pt.loc[m, "fp"]),
                    "recall": float(pt.loc[m, "recall"])} for m in models if m in te.index}
-        (MODEL_DIR / "compare_no_weather.json").write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
-        print(f"완료(기상 미포함 비교): {MODEL_DIR / 'compare_no_weather.json'} · {time.time() - t_start:.0f}초")
+        (MODEL_DIR / "compare_weather.json").write_text(json.dumps({"weather": use_w, "models": out}, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"완료(기상 {'포함' if use_w else '미포함'} 비교): {MODEL_DIR / 'compare_weather.json'} · {time.time() - t_start:.0f}초")
         return
 
     print("8) DB 저장 (시험기간 예측)")
@@ -235,7 +238,7 @@ def run(skip_lstm: bool = False, compare_no_weather: bool = False) -> None:
             "importance": [[k, round(float(v), 3)] for k, v in imp.head(10).items()],
             "rooms": g.rooms_all, "inactive": sorted(g.inactive), "models": models,
             "scale_total": float(scale[0]), "prep": {**g.prep, "excluded_train_cells": excluded_train},
-            "weather": True, "alert_ratio": __import__("peakguard.config", fromlist=["ALERT_RATIO"]).ALERT_RATIO}
+            "weather": use_w, "alert_ratio": __import__("peakguard.config", fromlist=["ALERT_RATIO"]).ALERT_RATIO}
     with engine.begin() as con:
         con.execute(st_meta.insert(), [{"key": "info", "value": json.dumps(info, ensure_ascii=False)}])
     print(f"완료: 예측 {len(fc):,}행 저장, 총 {time.time() - t_start:.0f}초")
