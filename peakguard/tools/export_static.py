@@ -56,6 +56,19 @@ def export(date: str = DEFAULT_DATE, model: str = DEFAULT_MODEL, out: str | None
     for k in KEYS:                                                         # 세 번째 화면: 피크 기준점 5종
         api[f"api/performance?thr={k}"] = performance.performance(k)
     api["api/alerts/template"] = {"message": DEFAULT_MESSAGE}
+    # [실시간 연결]: 질문 창(빠진 자료) → 마지막 실측 기준 연결이 시연용 파일에서도 보이도록 내보낼 때의 결과를 담음
+    from ..api import live
+    from ..live.predictor import predict_latest
+    from .. api.common import engine as _eng
+    st = live.status()
+    st["api_configured"] = False
+    api["api/live/status"] = st
+    api["api/live/sync"] = {"before_last": st["last_measured"], "after_last": st["last_measured"], "inserted": 0, "files": [],
+                            "missing_slots_to_now": st["missing_slots_to_now"], "now": st["now"], "notes": ["시연용 파일"],
+                            "incoming_folder": "data/incoming"}
+    for f in days["families"]:
+        for mid in (f["direct"], f["sum"]):
+            api["api/live/predict?model=" + enc(mid)] = predict_latest(_eng, mid)
     api["api/contacts"] = []                                              # 연락처(개인정보)는 시연 파일에 넣지 않음
     rooms = list(replay[dates[0]]["frames"][0]["rooms"])
     times, peaks = set(), set()

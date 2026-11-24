@@ -286,8 +286,10 @@
     zone.textContent = '여기에 전력 CSV 파일을 끌어다 놓거나 눌러서 고르세요 (여러 개 가능)';
     const input = Object.assign(document.createElement('input'), { type: 'file', accept: '.csv', multiple: true, hidden: true });
     const log = document.createElement('div'); log.className = 'uplog';
+    if (PG.STATIC) log.append(P('시연용 파일에서는 실제로 올리지 않습니다 (서버 실행 시 DB에 들어감). [실시간 연결]을 누르면 마지막 실측 기준으로 연결합니다.', 'note err'));
     let total = 0;
     const send = async (files) => {
+      if (PG.STATIC) { [...files].forEach((f) => log.append(P(`${f.name} — 시연용 파일이라 올리지 않음`, 'note'))); return; }
       for (const f of files) {
         const line = P(`${f.name} 올리는 중…`); log.append(line);
         try {
@@ -327,6 +329,6 @@
       P('파일 끌어다놓기: 기업에서 받은 CSV를 올린 뒤 실시간 연결 · 바로 연결: 기업 API로 받아 온 뒤 실시간 연결', 'note'),
     ], [['파일 끌어다놓기', () => { setTimeout(uploadDialog, 0); }], ['바로 연결', () => { setTimeout(directConnect, 0); }, 'primary'], ['취소']]);
   });
-  if (PG.STATIC) { $('#golive').disabled = true; $('#golive').title = '시연용 파일에서는 실시간 연결을 할 수 없습니다 (서버 실행 시 가능)'; }
+  // 시연용 파일: 질문 창·연결 흐름은 그대로 보여 주고, 파일 올리기·기업 API 받기는 서버에서만 (마지막 실측 기준 연결은 미리 담은 예측으로 동작)
   PG.onTheme.push(() => S.render());
 })();
