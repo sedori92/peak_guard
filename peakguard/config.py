@@ -44,6 +44,7 @@ VAL_START, VAL_END = "2026-09-15 00:00", "2026-10-06 23:45"
 TEST_START, TEST_END = "2026-10-20 15:15", "2026-11-02 16:30"   # 발행 시각 기준 (공통 표본 1,155 발행)
 SEED = 42
 PEAK_WINDOW_DAYS = 30             # 피크 기준 = 직전 30일
+ALERT_RATIO = 0.95                # 위험 판정: 다음 1시간 예측이 피크 기준의 95% 이상이면 '위험', 아니면 '정상' (2단계)
 PEAK_PERCENTILE = 95              #           의 95백분위수(P95)
 MAPE_MIN_TOTAL_KW = 1.0           # MAPE 계산 제외 기준 (저사용량)
 MAPE_MIN_CHANNEL_KW = 0.1

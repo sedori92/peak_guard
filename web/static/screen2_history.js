@@ -28,7 +28,7 @@
     fs.onchange = loadInfluence;
     PG.onTheme.push(() => { if (H2.snap) drawPlan(H2.snap); if (H2.inf) drawInfluence(H2.inf); });
   };
-  H2.show = () => { if (!H2.loaded) { H2.loaded = true; loadReport(); } };
+  H2.show = () => { if (!H2.loaded) { H2.loaded = true; loadReport(); PG.PAT && PG.PAT.load(); } };
 
   // ---------- 상단: 최고관리자 보고서 ----------
   async function loadReport() {
@@ -109,9 +109,10 @@
   function drawTop(d) {
     const tp = $('#reptop'); tp.replaceChildren();
     $('#reppk').textContent = `${d.time} · 건물 ${fmt(d.total_kw, 2)} kW`;
-    H2.row(tp, ['순위', '채널', '구분', 'kW', '건물 대비'], true);
+    // 건물 대비 = 96채널 합계 대비, 호실 대비 = 호실 34개 합계 대비 (기업 3차 답변 ④: 두 비중을 구분해 표시)
+    H2.row(tp, ['순위', '채널', '구분', 'kW', '건물 대비', '호실 대비'], true);
     d.channels.slice(0, 10).forEach((x, k) => {
-      const tr = H2.row(tp, [k + 1, x.label, x.kind, fmt(x.kw, 2), fmt(x.share_building, 1) + '%']);
+      const tr = H2.row(tp, [k + 1, x.label, x.kind, fmt(x.kw, 2), fmt(x.share_building, 1) + '%', x.share_rooms != null ? fmt(x.share_rooms, 1) + '%' : '—']);
       if (x.kind === '호실') { tr.classList.add('link'); tr.onclick = () => toRoom(x.channel); }
     });
   }

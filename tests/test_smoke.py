@@ -121,7 +121,7 @@ def test_performance_screen():
         assert [r["name"] for r in s["rows"]] == ["전일 동일시각", "LightGBM", "XGBoost", "Random Forest", "Bi-LSTM"]
         na = s["no_alarm"]
         assert na["tp"] == 0 and na["recall"] == 0 and na["fn"] == s["actual_risk"]
-        best = max(s["rows"][1:], key=lambda r: r["peak"]["recall"])
+        best = max(s["rows"][1:], key=lambda r: (r["peak"]["recall"], -r["peak"]["fp"]))
         assert s["best_recall"] == best["id"]
     # 피크 기준점별: 최근 30일 = 학습 때 저장한 오분류표와 같아야 함, 다른 기준도 계산됨
     e = {r["model_name"]: r for r in client.get("/api/eval").json()["peak_detection"] if r["split"] == "test"}
@@ -142,6 +142,28 @@ def test_history_screen(day):
     for series in ("TOTAL", s["channels"][0]["channel"]):
         f = client.get("/api/influence", params={"time": t, "series": series}).json()
         assert abs(f["base_kw"] + sum(x["kw"] for x in f["items"]) - f["actual_kw"]) < 0.01
+
+
+def test_patterns_and_extra_eval(day):
+    """두 번째 화면 사용패턴 분석 + 세 번째 화면 발생시각 오차·조건별 정확도·모델 선정."""
+    r = client.get("/api/patterns", params={"range": "30d", "date": day}).json()
+    assert len(r["heat"]["values"]) >= 5 and len(r["peak_hours"]["hist"]) == 24 and "saving" in r and "pre_peak" in r
+    p = client.get("/api/performance").json()
+    assert p["timing"]["events"] > 0 and p["by_condition"]["rows"] and p["selection"]["lines"]
+
+
+def test_weather_upload_is_idempotent():
+    """기상 CSV(ASOS 분자료)를 올리면 그 구간만 다시 계산 — 두 번 올려도 칸 수가 같음."""
+    from peakguard.config import DATA_WEATHER
+    files = sorted(DATA_WEATHER.glob("*ASOS*.csv"))
+    if not files:
+        pytest.skip("기상 CSV 없음")
+    raw = files[-1].read_bytes()
+    lines = raw.split(b"\n")
+    small = b"\n".join(lines[:200]) + b"\n"
+    a = client.post("/api/upload", files={"file": ("asos_test.csv", small, "text/csv")}).json()
+    b = client.post("/api/upload", files={"file": ("asos_test.csv", small, "text/csv")}).json()
+    assert a["kind"] == "기상" and a["inserted"] == b["inserted"] > 0
 
 
 def test_contacts_and_alerts():

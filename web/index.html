@@ -45,7 +45,7 @@
 
     <!-- 상태 띠: ① 현재 피크(한전 방식 최대수요전력) | ② 피크 기준(콤보박스) | ③ 정상·주의·위험 | ④ 현재 수요전력 — kW 숫자 같은 크기 -->
     <section class="status" id="status" aria-live="polite">
-      <div class="peakbox"><div class="l">현재 피크 (최대수요전력)</div><div class="v" id="pk">—</div><div class="s" id="pks">—</div></div>
+      <div class="peakbox" title="96개 계측채널 단순합의 15분 최대값 (직전 12개월 7~9월·12~2월·당월 중). 분석용 잠정값이며 한전 공식 최대수요전력·계약전력 기준이 아님 (기업 답변)"><div class="l">96채널 합계 최대 (분석용)</div><div class="v" id="pk">—</div><div class="s" id="pks">—</div></div>
       <div class="thr">
         <label for="thrsel">피크 기준</label>
         <select id="thrsel" aria-label="피크 기준점 선택"></select>
@@ -59,7 +59,7 @@
       <!-- 상단 변동선: 직전 피크 기준선 + 건물 합계 예측선 -->
       <div class="card">
         <h2>수요전력 실시간 추이와 다음 1시간 예측 <span class="sub">15분 단위 · <span class="js-model">—</span></span></h2>
-        <div class="legend"><span><i class="sw" style="background:var(--ink)"></i>실측 수요전력</span><span><i class="sw" style="background:var(--pred)"></i>예측 (15분 × 4)</span><span><i class="sw" style="background:var(--bad)"></i>피크 기준</span><span><i class="sw" style="background:var(--yellow);height:8px;opacity:.6"></i>현재전력 순간값</span></div>
+        <div class="legend"><span><i class="sw" style="background:var(--ink)"></i>실측 수요전력</span><span><i class="sw" style="background:var(--pred)"></i>예측 (15분 × 4)</span><span><i class="sw" style="background:var(--bad)"></i>피크 기준</span><span><i class="sw" style="background:var(--bad);opacity:.5"></i>위험선 (기준의 95%)</span><span><i class="sw" style="background:var(--yellow);height:8px;opacity:.6"></i>현재전력 순간값</span></div>
         <svg class="chart" id="chart" viewBox="0 0 900 300" preserveAspectRatio="none" role="img" aria-label="수요전력 추이와 예측"></svg>
       </div>
       <!-- 경보발령 선택: 공용부분(최후 수단)을 맨 위, 그 아래 호실 34개 -->
@@ -111,7 +111,7 @@
         <div><h3>영향도 Top 10 <span class="sub" id="reppk">—</span></h3><div class="tscroll"><table class="perf" id="reptop"></table></div></div>
         <div><h3>평소 대비 증가 Top 10 <span class="sub" id="risesub">—</span></h3><div class="tscroll"><table class="perf" id="reprise"></table></div></div>
       </div>
-      <p class="note">줄을 누르면 오른쪽 두 표와 아래 배치도·영향도가 그 구간의 피크 시각으로 바뀝니다. 건물 합계 = 96개 계측채널 단순합. 영향도 = 피크 시각 사용량과 건물 합계 대비 비중. 평소 = 같은 요일·같은 시각 직전 4주 실측 평균, 증가 = 그 시각 실측 − 평소 (그날 유독 더 써서 피크를 만든 채널).</p>
+      <p class="note">줄을 누르면 오른쪽 두 표와 아래 배치도·영향도가 그 구간의 피크 시각으로 바뀝니다. 건물 합계 = 96개 계측채널 단순합. 영향도 = 피크 시각 사용량과 비중 (건물 대비 = 96채널 합계 대비, 호실 대비 = 호실 34개 합계 대비 — 기업 3차 답변 ④). 평소 = 같은 요일·같은 시각 직전 4주 실측 평균, 증가 = 그 시각 실측 − 평소 (그날 유독 더 써서 피크를 만든 채널).</p>
     </div>
     <!-- 하단: 고른 피크 시각의 층별 호실 배치도 + 전체 및 채널별 영향도 (모두 실측) -->
     <div class="grid2 histgrid">
@@ -126,6 +126,24 @@
         <div class="chctl"><label for="fsel">대상</label><select id="fsel" aria-label="전체 또는 채널 선택"></select></div>
         <svg id="fchart" viewBox="0 0 600 330" role="img" aria-label="실측 영향도"></svg>
         <p class="note" id="fnote">—</p>
+      </div>
+    </div>
+    <!-- 사용패턴 분석 (실측, 기업 과제 원문 목표 1 · 세부 2·4·5) -->
+    <div class="card" id="pat">
+      <h2>사용패턴 분석 <span class="sub" id="patsub">실측 기준 · 건물 합계(96채널) 15분 수요전력</span></h2>
+      <div class="repctl">
+        <div class="seg" role="group" aria-label="분석 기간" id="patseg">
+          <button type="button" data-r="all" aria-pressed="true">전체 기간</button><button type="button" data-r="90d">최근 90일</button><button type="button" data-r="30d">최근 30일</button>
+        </div>
+        <span class="note" id="patinfo">—</span>
+      </div>
+      <div class="patgrid">
+        <div class="pcell"><h3>요일 × 시간대 평균 수요전력 <span class="sub">시간대·요일별 사용 특성</span></h3><svg id="pheat" role="img" aria-label="요일 시간대 히트맵"></svg><div class="tscroll"><table class="perf" id="pmonth"></table></div></div>
+        <div class="pcell"><h3>절감이 필요한 시간대 <span class="sub" id="psavesub">—</span></h3><svg id="psave" role="img" aria-label="시간대별 위험 빈도"></svg><div id="psavelist" class="plist"></div></div>
+        <div class="pcell"><h3>피크 반복 패턴 <span class="sub">평일 일 최대가 나온 시각</span></h3><svg id="ppeak" role="img" aria-label="일 최대 발생 시각 분포"></svg><p class="note strong" id="ppeaksum">—</p></div>
+        <div class="pcell"><h3>피크 발생 전 사용패턴 <span class="sub">위험일 피크 2시간 전부터 (피크 = 100%)</span></h3><svg id="ppre" role="img" aria-label="피크 전 곡선"></svg><p class="note strong" id="ppresum">—</p></div>
+        <div class="pcell"><h3>기상요인 관계 <span class="sub">평일 일 최고기온 × 일 최대 수요전력</span></h3><svg id="pwx" role="img" aria-label="기온과 일 최대 산점도"></svg><p class="note strong" id="pwxsum">—</p></div>
+        <div class="pcell"><h3>이상 사용패턴 <span class="sub" id="panosub">—</span></h3><div class="tscroll"><table class="perf" id="pano"></table></div><p class="note" id="panorule">—</p></div>
       </div>
     </div>
   </section>
@@ -150,6 +168,7 @@
 <script src="static/screen1_predict.js"></script>
 <script src="static/screen1_alerts.js"></script>
 <script src="static/screen2_history.js"></script>
+<script src="static/screen2_patterns.js"></script>
 <script src="static/screen3_perf.js"></script>
 <script src="static/app.js"></script>
 </body>

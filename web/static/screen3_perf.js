@@ -24,10 +24,12 @@
     $('#pthrinfo').textContent = T.n ? `기준값 ${T.kw_min === T.kw_max ? fmt(T.kw_min, 2) : fmt(T.kw_min, 2) + ' ~ ' + fmt(T.kw_max, 2)} kW · 비교한 예측 시점 ${T.n.toLocaleString()}개 · 실제 피크 위험 ${T.actual_risk}건` : '이 기준은 계산할 자료가 없습니다';
     $('#perfnote').textContent = `시험기간 ${D.test[0]} ~ ${D.test[1]} (학습·검증에 쓰지 않은 기간)의 실측과 비교. ` +
       (sp.train ? `학습 ${sp.train[0].slice(0, 10)}~${sp.train[1].slice(0, 10)} · 검증 ${sp.val[0].slice(0, 10)}~${sp.val[1].slice(0, 10)} · ` : '') +
-      `모든 모델은 같은 예측 시점에서 비교(공통 표본). 피크 위험 = 다음 1시간 4칸 중 하나라도 그날 '${T.name}' 기준 이상. 기준을 바꾸면 ② 오분류표만 바뀌고 ① 예측 오차는 같습니다.` +
+      `모든 모델은 같은 예측 시점에서 비교(공통 표본). 예측 '위험' = 다음 1시간 예측 4칸 중 하나라도 그날 '${T.name}' 기준의 95% 이상(화면 판정과 같음), 실제 위험 = 실측 4칸 중 하나라도 기준 이상. 기준을 바꾸면 ② 오분류표만 바뀌고 ① 예측 오차는 같습니다.` +
       (T.n && !T.actual_risk ? ` ※ 시험기간에 '${T.name}' 기준을 넘은 적이 없어 재현율을 계산할 수 없습니다(헛경보만 비교).` : '');
     const box = $('#perfsections'); box.replaceChildren();
+    box.append(selectionCard(D));
     D.sections.forEach((s) => box.append(section(s)));
+    box.append(extraCards(D));
   };
 
   function section(s) {
@@ -88,5 +90,52 @@
     grid.append(left, right); card.append(grid);
     draw();
     return card;
+  }
+  // ---------- 최적 모델 선정 결론 (맨 위) ----------
+  const nameOf = (D) => { const m = {}; D.sections.forEach((s) => s.rows.forEach((r) => { m[r.id] = r.id === '전일 동일시각' ? r.name : `${s.key === 'direct' ? '합산 후 예측' : '예측 후 합산'} · ${r.name}`; })); return m; };
+  function selectionCard(D) {
+    const c = mk('div', 'card selcard'), S = D.selection;
+    c.append(mk('h2', null, '최적 모델 선정 결론'));
+    (S.lines || [S.text]).forEach((t, i) => c.append(mk('p', i === 0 ? 'selbest' : 'note strong', t)));
+    if (S.ranking) {
+      const t = mk('table', 'perf');
+      row(t, ['순위', '방식 · 모델', 'F1', '재현율', '정밀도', '헛경보', 'MAE', '개선율'], true);
+      S.ranking.forEach((r, i) => { const tr = row(t, [i + 1, r.name, fmt(r.f1, 3), pct(r.recall, 0), pct(r.precision, 0), r.fp, fmt(r.mae, 3), fmt(r.gain, 1) + '%']); if (!i) tr.classList.add('best'); });
+      const w = mk('div', 'tscroll'); w.append(t); c.append(w);
+      c.append(mk('p', 'note', `기준: 기업 목표(기준모델 대비 MAE 10% 이상 개선)를 넘은 모델 중 F1(재현율과 정밀도의 조화평균, F1 score) → MAE 순. 피크 기준 = '${D.thr.name}' 95번째 백분위수, 위험 = 기준의 95% 이상 예측.`));
+    }
+    return c;
+  }
+  // ---------- 발생시각 오차 · 조건별 정확도 · 기상 포함/미포함 ----------
+  function extraCards(D) {
+    const wrap = mk('div', 'extragrid'), N = nameOf(D);
+    // ③ 발생시각 오차
+    const a = mk('div', 'card'); a.append(mk('h2', null, '③ 예측시각과 실제 발생시각 오차'));
+    const T = D.timing, t1 = mk('table', 'perf');
+    row(t1, ['방식 · 모델', '사전 경보', '평균 선행', '시각 오차', '±15분 이내'], true);
+    Object.entries(T.rows).forEach(([id, r]) => row(t1, [N[id] || id, r.events ? `${r.warned}/${r.events} (${fmt(r.warned_pct, 0)}%)` : '—', r.lead_min == null ? '—' : r.lead_min + '분 전', r.abs_err_min == null ? '—' : `평균 ${r.abs_err_min}분 (이르게 ${r.early_pct}%)`, r.within15_pct == null ? '—' : r.within15_pct + '%']));
+    const w1 = mk('div', 'tscroll'); w1.append(t1); a.append(w1, mk('p', 'note', `시험기간 실제 피크 사건 ${T.events}건. ` + T.rule));
+    // ④ 조건별 정확도
+    const b = mk('div', 'card'); b.append(mk('h2', null, '④ 조건별 예측 정확도 (MAE, kW)'));
+    const C = D.by_condition, t2 = mk('table', 'perf');
+    row(t2, ['방식 · 모델', ...C.conditions], true);
+    Object.entries(C.rows).forEach(([id, r]) => row(t2, [N[id] || id, ...C.conditions.map((c) => fmt(r[c], 3))]));
+    const w2 = mk('div', 'tscroll'); w2.append(t2); b.append(w2, mk('p', 'note', '시험기간 공통 표본, 예측 대상 시각 기준으로 나눔. 표본 수: ' + C.conditions.map((c) => `${c} ${C.n[c].toLocaleString()}`).join(' · ')));
+    wrap.append(a, b);
+    // ⑤ 기상 포함 / 미포함
+    if (D.weather) {
+      const w = mk('div', 'card wide'); w.append(mk('h2', null, '⑤ 기상(기온) 포함 / 미포함 비교'));
+      const t3 = mk('table', 'perf');
+      row(t3, ['방식 · 모델', 'MAE 포함', 'MAE 미포함', '차이', '맞힘 포함 / 미포함', '헛경보 포함 / 미포함', '재현율 포함 / 미포함'], true);
+      D.weather.rows.forEach((r) => {
+        const d = r.mae_w - r.mae_nw;
+        const tr = row(t3, [N[r.id] || r.name, fmt(r.mae_w, 3), fmt(r.mae_nw, 3), (d > 0 ? '+' : '') + fmt(d, 3), `${r.tp_w ?? '—'} / ${r.tp_nw}`, `${r.fp_w ?? '—'} / ${r.fp_nw}`, `${pct(r.recall_w, 0)} / ${pct(r.recall_nw, 0)}`]);
+        if (d < 0) tr.classList.add('best');
+      });
+      const w3 = mk('div', 'tscroll'); w3.append(t3);
+      w.append(w3, mk('p', 'note', D.weather.note + ' 주황 줄 = 기상을 넣어 MAE가 줄어든 모델.' + (D.thr.key !== 'recent30' ? ' (맞힘·헛경보·재현율 비교는 최근 30일 기준에서만 표시)' : '')));
+      wrap.append(w);
+    }
+    return wrap;
   }
 })();

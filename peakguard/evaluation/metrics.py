@@ -21,10 +21,16 @@ def metrics(a: np.ndarray, p: np.ndarray, low: float) -> dict:
                 n=int(len(a)), n_mape=int(m.sum()))
 
 
-def peak_detection(actual: np.ndarray, pred: np.ndarray, thr: np.ndarray, ok: np.ndarray) -> dict:
-    """actual·pred: (발행, 4) kW, thr: (발행,) 기준값, ok: 평가에 쓸 발행."""
+def peak_detection(actual: np.ndarray, pred: np.ndarray, thr: np.ndarray, ok: np.ndarray, ratio: float | None = None) -> dict:
+    """actual·pred: (발행, 4) kW, thr: (발행,) 기준값, ok: 평가에 쓸 발행.
+
+    실제 위험 = 다음 1시간 실측 4칸 중 하나라도 피크 기준 이상
+    예측 위험 = 다음 1시간 예측 4칸 중 하나라도 피크 기준 × ALERT_RATIO(95%) 이상 (화면 '위험' 판정과 같음)
+    """
+    from ..config import ALERT_RATIO
+    r = ALERT_RATIO if ratio is None else ratio
     pa = (actual >= thr[:, None]).any(1)[ok]
-    pp = (pred >= thr[:, None]).any(1)[ok]
+    pp = (pred >= thr[:, None] * r).any(1)[ok]
     tp, fp, fn = int((pa & pp).sum()), int((~pa & pp).sum()), int((pa & ~pp).sum())
     tn = int((~pa & ~pp).sum())
     prec = tp / (tp + fp) if tp + fp else 0.0

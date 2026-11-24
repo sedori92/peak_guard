@@ -332,3 +332,16 @@ button.btn{border:0;cursor:pointer;font:inherit;font-size:13px;font-weight:600}
 #snapshare div:last-child{min-width:96px}
 #perfsections{display:flex;flex-direction:column;gap:14px}
 .histgrid .card{min-height:100%}
+/* 사용패턴 분석 */
+.patgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px 22px}
+.pcell{display:flex;flex-direction:column;gap:6px;min-width:0}
+.pcell svg{width:100%;display:block}
+.pcell .tscroll{max-height:220px}
+.note.strong{color:var(--ink2);font-size:12.5px}
+.plist p{margin:2px 0}
+@media (max-width:1100px){.patgrid{grid-template-columns:1fr}}
+.selcard .selbest{font-size:16px;font-weight:700;color:var(--amber);margin:2px 0}
+.selcard p{margin:2px 0}
+.extragrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+.extragrid .wide{grid-column:1/-1}
+@media (max-width:1100px){.extragrid{grid-template-columns:1fr}}

@@ -18,7 +18,8 @@ FEATURES = {
     "y3": "45분 전 수요", "y4": "1시간 전 같은 위치", "y8": "2시간 전", "d1": "15분 변화량",
     "max1h": "최근 1시간 최대", "mean4h": "최근 4시간 평균", "lag_day": "전일 같은 시각",
     "lag_week": "전주 같은 시각", "slot": "예측 시각(시간대)", "dow": "요일", "offday": "주말·공휴일",
-    "h": "선행시간", "series": "채널", "scale": "채널 규모",
+    "h": "선행시간", "tanom": "기온 평소 대비(최근 7일 평균과 차이)", "dtemp": "기온 1시간 변화",
+    "series": "채널", "scale": "채널 규모",
 }
 FEAT_COLS = list(FEATURES)
 
@@ -33,6 +34,12 @@ def features(g: Grid, s: int, issues: np.ndarray, scale: float) -> pd.DataFrame:
         "y4": _take(yi, issues - 4), "y8": _take(yi, issues - 8),
     }
     base["d1"] = base["y0"] - base["y1"]
+    # 기상 (기상청 ASOS 광주 관측) — 예측 시점에 이미 관측된 값만 사용 (미래 기온은 쓰지 않음)
+    #   기온 그대로가 아니라 '평소(최근 7일 평균) 대비'와 '1시간 변화'로 넣음 (grid.py 설명 참고)
+    t_arr = g.temp if g.temp is not None else np.full(len(g.times), np.nan)
+    a_arr = g.tanom if g.tanom is not None else np.full(len(g.times), np.nan)
+    base["tanom"] = _take(a_arr, issues)
+    base["dtemp"] = _take(t_arr, issues) - _take(t_arr, issues - 4)
     base["max1h"] = np.nanmax(np.vstack([base[k] for k in ("y0", "y1", "y2", "y3")]), axis=0)
     base["mean4h"] = np.nanmean(np.vstack([_take(yi, issues - k) for k in range(16)]), axis=0)
     for h in range(1, H + 1):

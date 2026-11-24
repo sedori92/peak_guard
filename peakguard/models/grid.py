@@ -4,6 +4,16 @@
   - y : 정답용 원본 (결측은 NaN 그대로)
   - yi: 입력용 (1시간 이하 끊김만 선형 보간)
   - p : 현재전력 순간값 (입력용)
+  - temp·hum : 기상청 ASOS 광주 기온·습도 15분 값 (1시간 이하 끊김만 보간)
+  - tanom : 기온 평소 대비 = 그 시각 기온 − 직전 7일 평균 기온 (예측 입력용)
+      기온 그대로를 넣으면 여름에 학습하고 가을에 시험할 때 '계절'을 기온으로 착각해 오차가 커짐(실험: LightGBM 시험 MAE 0.691 → 0.731).
+      평소 대비 차이로 바꾸면 계절과 상관없이 '평소보다 덥다/춥다'만 남아 오차가 줄어듦(0.691 → 0.678). 습도는 넣으면 나빠져 분석에만 씀.
+
+현재전력 음수 처리 (기업 추가 답변 5번)
+  - 음수는 계측 오류로 보고 결측(NaN)으로 바꿈 (0이나 절댓값으로 바꾸지 않음)
+  - 1시간(4칸) 이하로 짧게 끊긴 곳만 앞뒤 정상값으로 보간
+  - 그보다 긴 연속 음수·결측 구간은 보간하지 않고 p_bad 로 표시 → 학습에서 제외 (train.py)
+  - 처리 전후 건수·비율은 prep 에 기록 → st_meta 'info' → 세 번째 화면·README
 """
 from __future__ import annotations
 
@@ -28,9 +38,15 @@ class Grid:
     holiday: np.ndarray        # (T,)
     rooms_all: list[str]       # 화면용 호실 채널 34개 (비활성 포함)
     inactive: set[str]
+    p_bad: np.ndarray = None   # (S, T) 현재전력이 긴 구간 결측(음수 포함)이라 학습에서 뺄 칸
+    temp: np.ndarray = None    # (T,) 기온 ℃
+    hum: np.ndarray = None     # (T,) 습도 %
+    prep: dict = None          # 전처리 기록 (음수 건수·비율 등)
+    tanom: np.ndarray = None   # (T,) 기온 평소 대비 (직전 7일 평균과 차이)
 
 
-def load_grid(engine) -> Grid:
+def load_grid(engine, weather: bool = True) -> Grid:
+    """weather=False 이면 기온·습도를 비워 둠 (기상 미포함 비교 학습용)."""
     with engine.connect() as con:
         m = pd.read_sql(text("SELECT channel_id, measured_at, power_kw, demand_kw FROM measurement"), con)
         ch = pd.read_sql(text("SELECT channel_id, meter_id, is_active FROM channel"), con)
@@ -41,21 +57,43 @@ def load_grid(engine) -> Grid:
     t0, t1 = m.measured_at.min().normalize(), m.measured_at.max()
     times = pd.date_range(t0, t1, freq="15min")
     dem = m.pivot_table(index="measured_at", columns="channel_id", values="demand_kw").reindex(times)
+    n_rows, n_neg = int(len(m)), int((m.power_kw < 0).sum())
+    m.loc[m.power_kw < 0, "power_kw"] = np.nan                       # 현재전력 음수 → 결측 (기업 안내)
     pw = m.pivot_table(index="measured_at", columns="channel_id", values="power_kw").reindex(times)
-    dem, pw = dem[active], pw[active]
+    dem, pw = dem.reindex(columns=active), pw.reindex(columns=active)   # 현재전력이 전부 음수인 채널도 열 유지
     total = dem.sum(axis=1, min_count=len(active))
     total_p = pw.sum(axis=1, min_count=len(active))
     y = np.vstack([total.to_numpy(), dem.to_numpy().T])
     p = np.vstack([total_p.to_numpy(), pw.to_numpy().T])
     yi = pd.DataFrame(y.T).interpolate(limit=4, limit_area="inside").to_numpy().T
-    pi = pd.DataFrame(p.T).interpolate(limit=4, limit_area="inside").to_numpy().T
-    pi = np.where(np.isnan(pi), yi, pi)                     # 순간값 없으면 수요전력으로 대체
+    # 채널별로 짧은 끊김(1시간 이하)만 보간한 뒤 건물 합계를 다시 냄
+    pw_i = pw.interpolate(limit=4, limit_area="inside")
+    gap = pw.isna() & pw_i.isna() & dem.notna()                       # 실측(수요전력)은 있는데 현재전력은 긴 결측
+    # 건물 합계 순간값: 긴 결측 채널은 그 칸의 수요전력을 대신 씀 (기업 안내: 수요전력이 정상이면 우선 활용)
+    total_pi = pw_i.where(~gap, dem).sum(axis=1, min_count=len(active))
+    pi = np.vstack([total_pi.to_numpy(), pw_i.to_numpy().T])
+    p_bad = np.vstack([np.zeros(len(times), bool), gap.to_numpy().T])   # 학습 제외는 그 채널 자신의 칸만
+    pi = np.where(np.isnan(pi), yi, pi)                     # 예측할 때만: 순간값이 없으면 수요전력으로 대신 (학습은 p_bad 로 제외)
+    short = int((pw.isna() & pw_i.notna()).to_numpy().sum())
+    prep = {"rows": n_rows, "power_negative": n_neg, "power_negative_pct": round(n_neg / n_rows * 100, 2) if n_rows else 0,
+            "short_interpolated_cells": short, "long_gap_cells": int(gap.to_numpy().sum()),
+            "excluded_issue_slots_total": int(p_bad[0].sum())}
+    temp = hum = np.full(len(times), np.nan)
+    if weather:
+        with engine.connect() as con:
+            w = pd.read_sql(text("SELECT measured_at, temperature_c, humidity_pct FROM weather_15m"), con)
+        if len(w):
+            w["measured_at"] = pd.to_datetime(w.measured_at)
+            w = w.drop_duplicates("measured_at").set_index("measured_at").reindex(times).interpolate(limit=4, limit_area="inside")
+            temp, hum = w.temperature_c.to_numpy(), w.humidity_pct.to_numpy()
+    prep["weather_slots"] = int((~np.isnan(temp)).sum())
+    tanom = (pd.Series(temp) - pd.Series(temp).rolling(7 * DAY, min_periods=DAY).mean().shift(1)).to_numpy()
     kr = holidays.KR(years=sorted({t.year for t in times}))
     hol = np.array([d in kr for d in times.date])
     off = hol | (times.dayofweek >= 5)
     rooms_all = ch.loc[ch.meter_id.isin(ROOM_METERS), "channel_id"].sort_values().tolist()
     return Grid(times, ["TOTAL"] + active, y, yi, pi, off, hol, rooms_all,
-                set(ch.loc[~ch.is_active.astype(bool), "channel_id"]))
+                set(ch.loc[~ch.is_active.astype(bool), "channel_id"]), p_bad, temp, hum, prep, tanom)
 
 
 def thresholds(g: Grid) -> pd.Series:

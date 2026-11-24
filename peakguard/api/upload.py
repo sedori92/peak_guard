@@ -63,4 +63,13 @@ def ingest(raw: bytes, file_name: str, dry_run: bool = False) -> dict:
 async def upload(file: UploadFile = File(...), dry_run: bool = False):
     if not (file.filename or "").lower().endswith(".csv"):
         raise HTTPException(400, "CSV 파일만 받습니다.")
-    return ingest(await file.read(), file.filename, dry_run)
+    raw = await file.read()
+    from ..collect.weather import is_weather_csv, read_asos_bytes, upsert
+    if is_weather_csv(raw):                                   # 기상청 ASOS 분자료 CSV → 기상 업데이트
+        try:
+            r = upsert(engine, read_asos_bytes(raw), file.filename)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        return {"kind": "기상", "file": file.filename, "inserted": r["slots"], "duplicates": 0,
+                "note": f"기상 15분 값 {r['slots']}칸 갱신 ({r.get('from', '')} ~ {r.get('to', '')})"}
+    return {"kind": "전력", **ingest(raw, file.filename, dry_run)}

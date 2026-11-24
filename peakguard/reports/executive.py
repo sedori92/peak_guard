@@ -228,10 +228,10 @@ def to_xlsx(r: dict) -> bytes:
     ws = wb.create_sheet("영향도 Top10")
     ws["A1"] = f"기간 최대 피크 {sm.get('peak_kw')} kW ({sm.get('peak_time')}) 시각의 채널별 수요전력 상위 10"
     ws["A1"].font = Font(bold=True)
-    rows = [[x["rank"], x["name"], x["kind"], x["floor"], x["channel"], x["kw"], x["share_building"]]
+    rows = [[x["rank"], x["name"], x["kind"], x["floor"], x["channel"], x["kw"], x["share_building"], x["share_rooms"]]
             for x in r["top10"]]
-    table(ws, 3, ["순위", "채널", "구분", "층", "채널 ID", "피크 시각 kW", "건물 합계 대비(%)"],
-          rows, [7, 16, 8, 6, 13, 13, 16], {6: "0.000", 7: "0.0"})
+    table(ws, 3, ["순위", "채널", "구분", "층", "채널 ID", "피크 시각 kW", "건물 합계(96채널) 대비(%)", "호실 34개 합계 대비(%)"],
+          rows, [7, 16, 8, 6, 13, 13, 20, 18], {6: "0.000", 7: "0.0", 8: "0.0"})
     if rows:
         bc = BarChart()
         bc.type, bc.title, bc.height, bc.width = "bar", "피크 시각 영향도 Top10 (건물 합계 대비 %)", 8, 18

@@ -117,6 +117,16 @@ def snapshot(time: str = Query(..., description="YYYY-MM-DD HH:MM")):
             "common_kw": num(tot - rsum, 2), "n_channels": int(len(d)), "channels": out}
 
 
+@router.get("/patterns")
+def patterns(range: str = Query("all", pattern="^(all|90d|30d)$", description="분석 기간: 전체 / 최근 90일 / 최근 30일"),
+             date: str | None = Query(None, description="기간 끝 날짜 (비우면 마지막 실측일)")):
+    """두 번째 화면 '사용패턴 분석' — 요일×시간대, 월별, 피크 반복, 기상 관계, 이상 사용, 피크 전 패턴, 절감 필요 시간대 (실측만)."""
+    from ..eda.analysis import analyze
+    from ..live.predictor import _GRID, grid
+    grid(engine)
+    return analyze(range, date, tuple(_GRID.get("key", ())))
+
+
 @router.get("/rise")
 def rise(time: str = Query(..., description="피크 시각 YYYY-MM-DD HH:MM")):
     """'피크 시각 평소 대비 증가 Top 10' — 채널별 (그 시각 실측 − 같은 요일·시각 직전 4주 평균). 실측만."""

@@ -23,8 +23,11 @@ def lstm_arrays(g: Grid, s: int, issues: np.ndarray, scale: float):
     k = np.arange(-SEQ + 1, 1)
     idx = issues[:, None] + k[None, :]                                     # (N, 24)
     ang = 2 * np.pi * (idx % DAY) / DAY
+    tmp = g.temp if g.temp is not None else np.full(len(g.times), np.nan)
+    tan = g.tanom if g.tanom is not None else np.full(len(g.times), np.nan)
     seq = np.stack([_take(yi, idx), _take(p, idx), np.sin(ang), np.cos(ang),
-                    _take(g.offday.astype(float), idx)], axis=2)
+                    _take(g.offday.astype(float), idx),
+                    _take(tan, idx) / 10.0, (_take(tmp, idx) - _take(tmp, idx - 4)) / 5.0], axis=2)   # 기온 평소 대비·1시간 변화
     last = seq[:, -1, 0:1]
     seq[:, :, 0] = np.where(np.isnan(seq[:, :, 0]), last, seq[:, :, 0])
     seq[:, :, 1] = np.where(np.isnan(seq[:, :, 1]), seq[:, :, 0], seq[:, :, 1])
@@ -53,7 +56,7 @@ class BiLSTM:
         class Net(nn.Module):
             def __init__(s):
                 super().__init__()
-                s.lstm = nn.LSTM(5, hidden, batch_first=True, bidirectional=True)
+                s.lstm = nn.LSTM(7, hidden, batch_first=True, bidirectional=True)
                 s.emb = nn.Embedding(n_series, emb)
                 s.head = nn.Sequential(nn.Linear(2 * hidden + emb + 18, 64), nn.ReLU(), nn.Linear(64, H))
 

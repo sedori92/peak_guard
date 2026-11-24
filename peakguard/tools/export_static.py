@@ -70,6 +70,12 @@ def export(date: str = DEFAULT_DATE, model: str = DEFAULT_MODEL, out: str | None
         for mid in (f["direct"], f["sum"]):
             api["api/live/predict?model=" + enc(mid)] = predict_latest(_eng, mid)
     api["api/contacts"] = []                                              # 연락처(개인정보)는 시연 파일에 넣지 않음
+    for d in dates:                                                        # 두 번째 화면 '사용패턴 분석'
+        for rg in ("all", "90d", "30d"):
+            try:
+                api[f"api/patterns?range={rg}&date={d}"] = history.patterns(rg, d)
+            except Exception as e:
+                api[f"api/patterns?range={rg}&date={d}"] = {"__error": str(e)}
     rooms = list(replay[dates[0]]["frames"][0]["rooms"])
     times, peaks = set(), set()
     for d in dates:

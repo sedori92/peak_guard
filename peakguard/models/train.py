@@ -46,21 +46,29 @@ RESULT_TABLES = ("st_forecast", "st_eval", "st_peak_eval", "st_channel_eval", "s
 def main() -> None:
     ap = argparse.ArgumentParser(description="다음 1시간(15분×4) 예측 학습·평가·저장")
     ap.add_argument("--skip-lstm", action="store_true")
+    ap.add_argument("--no-weather", action="store_true",
+                    help="기상(기온·습도)을 빼고 학습해 성능만 models/compare_no_weather.json 에 저장 (DB·모델 파일은 그대로)")
     a = ap.parse_args()
-    run(a.skip_lstm)
+    run(a.skip_lstm, compare_no_weather=a.no_weather)
 
 
-def run(skip_lstm: bool = False) -> None:
+def run(skip_lstm: bool = False, compare_no_weather: bool = False) -> None:
+    """compare_no_weather=True: 기상 미포함 비교 실행 — 성능 요약만 JSON 으로 남기고 DB·모델 파일은 건드리지 않음."""
     t_start = time.time()
     engine = get_engine()
-    with engine.begin() as con:                       # 결과 표는 구조가 바뀔 수 있어 새로 만듦
-        for t in RESULT_TABLES:
-            con.execute(text(f"DROP TABLE IF EXISTS {t}"))
+    save = not compare_no_weather
+    if save:
+        with engine.begin() as con:                       # 결과 표는 구조가 바뀔 수 있어 새로 만듦
+            for t in RESULT_TABLES:
+                con.execute(text(f"DROP TABLE IF EXISTS {t}"))
     create_schema(engine)
     fc_meta.create_all(engine)
 
     print("1) DB에서 15분 격자 만들기")
-    g = load_grid(engine)
+    g = load_grid(engine, weather=not compare_no_weather)
+    print(f"   현재전력 음수 {g.prep['power_negative']:,}건({g.prep['power_negative_pct']}%) → 결측 처리, "
+          f"짧은 끊김 보간 {g.prep['short_interpolated_cells']:,}칸, 긴 결측 {g.prep['long_gap_cells']:,}칸(학습 제외) · "
+          f"기상 {'미포함' if compare_no_weather else f'포함 ({g.prep["weather_slots"]:,}칸)'}")
     T, S = len(g.times), len(g.series)
     pos = lambda ts: int(np.searchsorted(g.times, pd.Timestamp(ts)))   # noqa: E731
     tr_end, va_a, va_b, te_a, te_b = pos(TRAIN_END), pos(VAL_START), pos(VAL_END), pos(TEST_START), pos(TEST_END)
@@ -77,8 +85,12 @@ def run(skip_lstm: bool = False) -> None:
 
     print("3) 특징 만들기")
     X = {k: {s: features(g, s, v, scale[s]) for s in range(S)} for k, v in split.items()}
-    ch_tr = pd.concat([X["train"][s] for s in range(1, S)], ignore_index=True).dropna(subset=["y", "y0"])
-    tot_tr = X["train"][0].dropna(subset=["y", "y0"])
+    def drop_bad(d: pd.DataFrame) -> pd.DataFrame:    # 현재전력 긴 결측(연속 음수 등) 칸은 학습에서 제외 (기업 안내)
+        bad = g.p_bad[d["series"].to_numpy().astype(int), d["issue"].to_numpy().astype(int)]
+        return d[~bad]
+    ch_tr = drop_bad(pd.concat([X["train"][s] for s in range(1, S)], ignore_index=True).dropna(subset=["y", "y0"]))
+    tot_tr = drop_bad(X["train"][0].dropna(subset=["y", "y0"]))
+    excluded_train = int(sum(g.p_bad[s][split["train"]].sum() for s in range(S)))
     EV = ("val", "test")
     preds: dict[str, dict[str, dict[int, np.ndarray]]] = {k: {} for k in EV}   # 기간 → 모델 → 시계열 → (발행, 4) kW
 
@@ -104,8 +116,9 @@ def run(skip_lstm: bool = False) -> None:
             p = mod.predict(m_ch, ch)
             preds[k][name] = {0: to_mat(X[k][0], mod.predict(m_tot, X[k][0]), 0, k)}
             preds[k][name] |= {int(s): to_mat(ch.iloc[ix], p[ix], int(s), k) for s, ix in ch.groupby("series").indices.items()}
-        joblib.dump({"TOTAL": m_tot, "CHANNEL": m_ch, "scale": scale, "series": g.series},
-                    MODEL_DIR / f"st_{name}.joblib", compress=3)
+        if save:
+            joblib.dump({"TOTAL": m_tot, "CHANNEL": m_ch, "scale": scale, "series": g.series},
+                        MODEL_DIR / f"st_{name}.joblib", compress=3)
         print(f"   {time.time() - t0:.0f}초")
         if name == "LightGBM":                              # 건물 전체 1시간 뒤 예측의 SHAP
             x4 = X["test"][0][X["test"][0]["h"] == H]
@@ -115,8 +128,12 @@ def run(skip_lstm: bool = False) -> None:
         print("6) Bi-LSTM (전체 + 채널 함께 학습, 검증기간으로 조기 종료)")
         t0 = time.time()
         cat = lambda parts: tuple(np.concatenate(z) for z in zip(*parts))   # noqa: E731
-        trp = [bilstm_model.lstm_arrays(g, 0, split["train"], scale[0])] * 8
-        trp += [bilstm_model.lstm_arrays(g, s, split["train"][::3], scale[s]) for s in range(1, S)]
+        def tr_arr(s, iss):                                # 학습용: 현재전력 긴 결측 칸 제외
+            a = bilstm_model.lstm_arrays(g, s, iss, scale[s])
+            a[2][g.p_bad[s][iss]] = np.nan
+            return a
+        trp = [tr_arr(0, split["train"])] * 8
+        trp += [tr_arr(s, split["train"][::3]) for s in range(1, S)]
         vap = [bilstm_model.lstm_arrays(g, 0, split["val"], scale[0])]
         vap += [bilstm_model.lstm_arrays(g, s, split["val"][::4], scale[s]) for s in range(1, S)]
         net = bilstm_model.BiLSTM(S).fit(cat(trp), cat(vap))
@@ -124,7 +141,8 @@ def run(skip_lstm: bool = False) -> None:
             preds[k]["BiLSTM"] = {s: net.predict(bilstm_model.lstm_arrays(g, s, split[k], scale[s])) * scale[s]
                                   for s in range(S)}
         import torch
-        torch.save({"state": net.net.state_dict(), "params": net.params, "scale": scale, "series": g.series},
+        if save:
+            torch.save({"state": net.net.state_dict(), "params": net.params, "scale": scale, "series": g.series},
                    MODEL_DIR / "st_BiLSTM.pt")
         print(f"   {time.time() - t0:.0f}초")
 
@@ -170,6 +188,17 @@ def run(skip_lstm: bool = False) -> None:
     print("7) 평가 — 건물 전체 MAE (공통 표본)\n" + show.round(3).to_string())
     print(pk[pk.split == "test"][["model_name", "tp", "fp", "fn", "tn", "recall", "miscls"]].round(3).to_string(index=False))
 
+    if not save:                                           # 기상 미포함 비교: 성능 요약만 남김
+        te = ev[(ev.split == "test") & (ev.scope == "TOTAL") & (ev.horizon_min == 0)].set_index("model_name")
+        va = ev[(ev.split == "val") & (ev.scope == "TOTAL") & (ev.horizon_min == 0)].set_index("model_name")
+        pt = pk[pk.split == "test"].set_index("model_name")
+        out = {m: {"mae": float(te.loc[m, "mae"]), "val_mae": float(va.loc[m, "mae"]), "rmse": float(te.loc[m, "rmse"]),
+                   "tp": int(pt.loc[m, "tp"]), "fn": int(pt.loc[m, "fn"]), "fp": int(pt.loc[m, "fp"]),
+                   "recall": float(pt.loc[m, "recall"])} for m in models if m in te.index}
+        (MODEL_DIR / "compare_no_weather.json").write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"완료(기상 미포함 비교): {MODEL_DIR / 'compare_no_weather.json'} · {time.time() - t_start:.0f}초")
+        return
+
     print("8) DB 저장 (시험기간 예측)")
     keep = [0] + [i for i, c in enumerate(g.series) if c in set(g.rooms_all)]   # 전체 + 호실 채널만 저장
     iss_txt = g.times[split["test"]].strftime("%Y-%m-%d %H:%M:%S").to_numpy()
@@ -205,7 +234,8 @@ def run(skip_lstm: bool = False) -> None:
     info = {"test_start": sp["test"][0], "test_end": sp["test"][1], "splits": sp, "shap_base": base,
             "importance": [[k, round(float(v), 3)] for k, v in imp.head(10).items()],
             "rooms": g.rooms_all, "inactive": sorted(g.inactive), "models": models,
-            "scale_total": float(scale[0])}
+            "scale_total": float(scale[0]), "prep": {**g.prep, "excluded_train_cells": excluded_train},
+            "weather": True, "alert_ratio": __import__("peakguard.config", fromlist=["ALERT_RATIO"]).ALERT_RATIO}
     with engine.begin() as con:
         con.execute(st_meta.insert(), [{"key": "info", "value": json.dumps(info, ensure_ascii=False)}])
     print(f"완료: 예측 {len(fc):,}행 저장, 총 {time.time() - t_start:.0f}초")

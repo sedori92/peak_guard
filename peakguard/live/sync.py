@@ -42,6 +42,11 @@ def sync(engine) -> dict:
     INCOMING.mkdir(parents=True, exist_ok=True)
     done = INCOMING / "done"
     for f in sorted(INCOMING.glob("*.csv")):
+        from ..collect.weather import is_weather_csv
+        if is_weather_csv(f.read_bytes()):                      # 기상 CSV 를 전력 폴더에 넣은 경우 → 기상 폴더로
+            (INCOMING / "weather").mkdir(exist_ok=True)
+            shutil.move(str(f), str(INCOMING / "weather" / f.name))
+            continue
         r = ingest(f.read_bytes(), f.name)
         inserted += r.get("inserted", 0)
         files.append({"file": f.name, "inserted": r.get("inserted", 0), "duplicates": r.get("duplicates", 0)})
@@ -63,6 +68,9 @@ def sync(engine) -> dict:
             notes.append(f"기업 DB 연결 실패: {e.__class__.__name__}")
     else:
         notes.append("기업 DB 직접 연결은 설정되지 않음 (.env 의 LIVE_DB_URL)")
+    # 3) 기상 데이터도 같은 방식으로 업데이트 (예측 입력 기온·습도)
+    from ..collect.weather import update as weather_update
+    weather = weather_update(engine)
     after = last_measured(engine)
     now = pd.Timestamp.now().floor("15min")
     gap = int((now - pd.Timestamp(after)) / pd.Timedelta("15min")) if after else None
@@ -70,4 +78,4 @@ def sync(engine) -> dict:
         notes.append(f"{before} 이후 새 데이터 없음 — 마지막 실측 기준으로 예측합니다")
     return {"before_last": before, "after_last": after, "inserted": inserted, "files": files,
             "missing_slots_to_now": gap, "now": f"{now:%Y-%m-%d %H:%M}", "notes": notes,
-            "incoming_folder": str(INCOMING.relative_to(ROOT))}
+            "incoming_folder": str(INCOMING.relative_to(ROOT)), "weather": weather}

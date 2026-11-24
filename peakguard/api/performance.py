@@ -74,4 +74,12 @@ def performance(thr: str = Query("recent30", pattern="^(recent30|prev_month|this
         out["sections"].append({"key": key, "title": METHODS[key], "rows": rows, "no_alarm": none_row,
                                 "best_recall": best_recall, "best_mae": best_mae,
                                 "actual_risk": bp["tp"] + bp["fn"]})
+    # 추가 평가: 발생시각 오차 · 조건별 정확도 · 기상 포함/미포함 · 최적 모델 선정 (evaluation/extra.py)
+    from ..evaluation import extra
+    out["timing"] = extra.timing({k: v for k, v in sel["days"].items() if v is not None})
+    out["by_condition"] = extra.by_condition()
+    allrows = {r["id"]: r for sec in out["sections"] for r in sec["rows"]}
+    out["weather"] = extra.weather_compare(allrows) if thr == "recent30" else extra.weather_compare(
+        {k: {**v, "peak": None} for k, v in allrows.items()})
+    out["selection"] = extra.selection(out["sections"])
     return out

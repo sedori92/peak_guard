@@ -65,10 +65,12 @@
   const applyThr = (f) => { if (f.thr0 === undefined) f.thr0 = f.thr; f.thr = S.thrOf(f); return f; };
 
   // ---------- 판정: 다음 1시간 예측 4개 중 하나라도 기준 이상 = 피크 위험, 95% 이상 = 주의 ----------
+  //   2단계 (기업 1차 답변 C2 + 2차 수정 지시): 다음 1시간 예측 4칸 중 하나라도 피크 기준의 95% 이상 = '위험', 나머지 '정상'
+  S.RATIO = 0.95;
   S.state = (f) => {
     const mx = Math.max(...f.pred), k = f.pred.indexOf(mx);
-    const first = f.thr == null ? -1 : f.pred.findIndex((v) => v >= f.thr);
-    const lvl = f.thr == null ? 'ok' : first >= 0 ? 'bad' : (mx >= f.thr * 0.95 ? 'warn' : 'ok');
+    const first = f.thr == null ? -1 : f.pred.findIndex((v) => v >= f.thr * S.RATIO);
+    const lvl = f.thr == null ? 'ok' : first >= 0 ? 'bad' : 'ok';
     return { mx, k, first, lvl, at: addMin(f.t, 15 * (k + 1)) };
   };
   S.topRooms = (f, n = 5) => Object.entries(Object.keys(f.proom || {}).length ? f.proom : f.rooms).sort((a, b2) => b2[1] - a[1]).slice(0, n);
@@ -79,13 +81,13 @@
   function drawStatus(f, s) {
     $('#status').classList.toggle('risk', s.lvl === 'bad');
     const pill = $('#pill'); pill.className = 'pill ' + s.lvl;
-    pill.textContent = s.lvl === 'bad' ? '피크 위험' : s.lvl === 'warn' ? '주의' : '정상';
+    pill.textContent = s.lvl === 'bad' ? '위험' : '정상';
     const msg = $('#msg'); msg.replaceChildren();
     const line = document.createElement('div');
     if (f.thr == null) line.append('피크 기준을 계산할 실측이 부족합니다 — 오른쪽에서 다른 기준을 고르세요');
-    else if (s.lvl === 'bad') line.append('최초 위험 예상 ', PG.b(addMin(f.t, 15 * (s.first + 1))), ' · 최대 예상 ', PG.b(fmt(s.mx, 2) + ' kW'), ' · 기준 초과 ', PG.b('+' + fmt(s.mx - f.thr, 2) + ' kW'));
-    else if (s.lvl === 'warn') line.append('다음 1시간 최대 ', PG.b(fmt(s.mx, 2) + ' kW'), ' (', PG.b(s.at), ') · 기준의 ', PG.b(fmt(s.mx / f.thr * 100, 0) + '%'));
-    else line.append('다음 1시간 최대 ', PG.b(fmt(s.mx, 2) + ' kW'), ' · 기준까지 여유 ', PG.b(fmt(f.thr - s.mx, 2) + ' kW'));
+    else if (s.lvl === 'bad') line.append('최초 위험 예상 ', PG.b(addMin(f.t, 15 * (s.first + 1))), ' · 최대 예상 ', PG.b(fmt(s.mx, 2) + ' kW'), ' · 기준의 ', PG.b(fmt(s.mx / f.thr * 100, 0) + '%'),
+      s.mx >= f.thr ? ` (기준 초과 +${fmt(s.mx - f.thr, 2)} kW)` : '');
+    else line.append('다음 1시간 최대 ', PG.b(fmt(s.mx, 2) + ' kW'), ' · 기준의 ', PG.b(fmt(s.mx / f.thr * 100, 0) + '%'), ' · 위험선(95%)까지 여유 ', PG.b(fmt(f.thr * S.RATIO - s.mx, 2) + ' kW'));
     const sm = document.createElement('small');
     sm.textContent = s.lvl === 'bad' ? `먼저 점검할 호실: ${S.topRooms(f, 3).map((r) => roomName(r[0])).join(', ')} → 오른쪽 '경보발령 선택'에서 발령` : `다음 갱신 ${addMin(f.t, 15)}`;
     msg.append(line, sm);
@@ -103,7 +105,7 @@
     let kw = base.kw, when = base.time, note = base.basis;
     S.history().forEach((x) => { if (x.y != null && x.y > kw) { kw = x.y; when = `${S.live ? S.live.frame.date : S.DATA.date} ${x.t}`; note = '오늘 새 최대'; } });
     setv('#pk', fmt(kw, 2), 'kW');
-    $('#pks').textContent = `${when.slice(5)} · ${note === '오늘 새 최대' ? note : '여름·겨울·당월 최대'}`;
+    $('#pks').textContent = `${when.slice(5)} · ${note === '오늘 새 최대' ? note : '분석용 · 공식 최대수요전력 아님'}`;
     $('#pks').title = note;
     $('#status').classList.toggle('newpeak', note === '오늘 새 최대');
   }
@@ -147,6 +149,9 @@
       el('rect', { x: ml, y: mt, width: W - ml - mr, height: Math.max(0, ty - mt), fill: css('--bad'), opacity: 0.06 }, svg);
       el('line', { x1: ml, x2: W - mr, y1: ty, y2: ty, stroke: css('--bad'), 'stroke-width': 1.5, 'stroke-dasharray': '6 4' }, svg);
       const tl = el('text', { x: ml + 6, y: ty - 6, 'font-size': 11, fill: css('--bad'), 'font-weight': 600 }, svg); tl.textContent = '피크 기준 ' + fmt(f.thr, 2) + ' kW';
+      const wy = ys(f.thr * S.RATIO);                       // 위험선 = 기준의 95%
+      el('line', { x1: ml, x2: W - mr, y1: wy, y2: wy, stroke: css('--bad'), 'stroke-width': 1, 'stroke-dasharray': '2 4', opacity: 0.7 }, svg);
+      const wl = el('text', { x: W - mr - 4, y: wy + 13, 'text-anchor': 'end', 'font-size': 10.5, fill: css('--bad'), opacity: 0.85 }, svg); wl.textContent = '위험선 95% ' + fmt(f.thr * S.RATIO, 2);
     }
     if (!S.live && S.trail.length > 1) el('polyline', { points: S.trail.filter((p) => p[0] >= X0).map((p) => xs(p[0]) + ',' + ys(p[1])).join(' '), fill: 'none', stroke: css('--amber'), 'stroke-width': 1.2, opacity: 0.55 }, svg);
     const pts = S.history().filter((x) => x.y != null).map((x) => [tm(x.t), x.y]).filter((p) => p[0] >= X0);
@@ -156,7 +161,7 @@
     }
     const t0 = tm(f.t), fp = [[t0, f.y], ...f.pred.map((v, k) => [t0 + 15 * (k + 1), v])];
     el('polyline', { points: fp.map((p) => xs(p[0]) + ',' + ys(p[1])).join(' '), fill: 'none', stroke: css('--pred'), 'stroke-width': 2.4, 'stroke-dasharray': '7 5' }, svg);
-    f.pred.forEach((v, k) => { const over = f.thr != null && v >= f.thr; el('circle', { cx: xs(t0 + 15 * (k + 1)), cy: ys(v), r: over ? 4.5 : 3.5, fill: over ? css('--bad') : css('--panel'), stroke: over ? css('--bad') : css('--pred'), 'stroke-width': 2 }, svg); });
+    f.pred.forEach((v, k) => { const over = f.thr != null && v >= f.thr * S.RATIO; el('circle', { cx: xs(t0 + 15 * (k + 1)), cy: ys(v), r: over ? 4.5 : 3.5, fill: over ? css('--bad') : css('--panel'), stroke: over ? css('--bad') : css('--pred'), 'stroke-width': 2 }, svg); });
     el('line', { x1: xs(t0), x2: xs(t0), y1: mt, y2: H - mb, stroke: css('--ink2'), 'stroke-dasharray': '2 3' }, svg);
     const nt = el('text', { x: xs(t0) + 6, y: mt + 12, 'font-size': 11, fill: css('--ink2') }, svg); nt.textContent = (S.live ? '최근 실측 ' : '지금 ') + f.t;
   }

@@ -28,7 +28,13 @@ def status():
     return {"last_measured": last, "now": f"{now:%Y-%m-%d %H:%M}",
             "missing_slots_to_now": int((now - pd.Timestamp(last)) / pd.Timedelta("15min")) if last else None,
             "incoming_folder": "data/incoming", "waiting_files": sorted(p.name for p in INCOMING.glob("*.csv")),
-            "api_configured": bool(os.getenv("LIVE_DB_URL") and os.getenv("LIVE_DB_QUERY"))}   # 기업 API(DB) 연결 설정 여부
+            "api_configured": bool(os.getenv("LIVE_DB_URL") and os.getenv("LIVE_DB_QUERY")),
+            "weather_last": _wlast(), "weather_api_configured": bool(os.getenv("WEATHER_API_URL"))}
+
+
+def _wlast():
+    from ..collect.weather import last_weather
+    return last_weather(engine)   # 기업 API(DB) 연결 설정 여부
 
 
 @router.post("/sync")

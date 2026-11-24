@@ -57,7 +57,10 @@ def options(total: pd.Series, day) -> dict:
 
 
 def current_peak(total: pd.Series, day) -> dict:
-    """상태 띠 맨 앞 '현재 피크' — 한전 요금적용전력 방식의 최대수요전력 (15분 수요전력 중 가장 높은 값 하나).
+    """상태 띠 맨 앞 '96채널 합계 최대 (분석용)' — 15분 수요전력 중 가장 높은 값 하나.
+
+    기업 답변: 96채널 단순합은 분석용 잠정값이며 한전 공식 최대수요전력·계약전력 기준으로 쓰지 않음.
+    기간만 한전 요금적용전력과 같은 방식(직전 12개월 중 여름·겨울·당월)으로 잡아 참고용으로 보여 줌.
 
     검침 당월을 포함한 직전 12개월 중 여름(7·8·9월)·겨울(12·1·2월)과 당월의 15분 최대수요전력 중 가장 큰 값.
     여기서는 기준일 전날까지 실측으로 계산하고, 화면에서 오늘 실측이 이 값을 넘으면 그 값으로 바꿔 보여 줍니다.
@@ -73,4 +76,4 @@ def current_peak(total: pd.Series, day) -> dict:
     months = sorted({(x.year, x.month) for x in pick.index})
     has_winter = any(m in (12, 1, 2) for _, m in months)
     return {"kw": round(float(pick.max()), 2), "time": f"{t:%Y-%m-%d %H:%M}", "month": f"{t.month}월",
-            "basis": "직전 12개월 7~9월·12~2월·당월 최대" + ("" if has_winter else " (12~2월 자료 없음)")}
+            "basis": "96채널 합계 · 직전 12개월 7~9월·12~2월·당월 최대 (분석용, 공식 최대수요전력 아님)" + ("" if has_winter else " · 12~2월 자료 없음")}
