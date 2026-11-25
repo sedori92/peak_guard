@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 
-from ..config import ROOT
+from ..config import MODEL_DIR, ROOT
 
 
 def pct(v, d=0):
@@ -33,6 +33,16 @@ def main() -> None:
          f"- 입력: 직전 수요·현재전력·전일/전주 같은 시각·시간·요일·공휴일 (기상: {'사용' if inf.get('weather') else '검증 결과 미채택 — 아래 비교 참고'})", "",
          "## 결론", ""]
     L += [f"- {x}" for x in p["selection"].get("lines", [p["selection"].get("text", "")])]
+    sj = MODEL_DIR / "seeds.json"
+    if sj.exists():
+        B = json.loads(sj.read_text(encoding="utf-8"))["models"].get("BiLSTM")
+        if B:
+            t = B["summary"]["현재"]["test"]
+            L += ["", f"> **한계 (시드 흔들림)**: 위 숫자는 시드 42로 학습한 결과입니다. Bi-LSTM 은 시드 5개로 다시 학습하면 시험기간 위험 감지가 "
+                      f"{t['tp']['min']}~{t['tp']['max']}건(평균 {t['tp']['mean']:.1f}건), MAE {t['mae']['min']:.3f}~{t['mae']['max']:.3f} kW 로 크게 흔들립니다. "
+                      "성적이 나쁜 시드는 학습이 일찍 멈춘 경우(조기 종료)이며 검증기간 오차도 함께 나빠 시험 전에 구별됩니다. "
+                      "나무 모델 3종은 흔들림이 작습니다. 자세한 표는 [TUNING.md](TUNING.md) '시드별 흔들림 확인'. "
+                      "운영 전 보완 방안: 조기 종료 조건 완화 + 시드 여러 개 예측 평균(앙상블)."]
     for s in p["sections"]:
         L += ["", f"## {s['title']}", "", "| 모델 | MAE | RMSE | MAPE | 개선율 | 맞힘 | 놓침 | 헛경보 | 재현율 | 정밀도 |", "|---|---|---|---|---|---|---|---|---|---|"]
         for r in s["rows"]:
