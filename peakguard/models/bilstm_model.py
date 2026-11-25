@@ -52,10 +52,11 @@ def lstm_arrays(g: Grid, s: int, issues: np.ndarray, scale: float):
 
 
 class BiLSTM:
-    def __init__(self, n_series: int, hidden: int = 48, emb: int = 8):
+    def __init__(self, n_series: int, hidden: int = 48, emb: int = 8, seed: int = SEED):   # seed: 시드별 흔들림 확인용 (기본 = config.SEED)
         import torch
         from torch import nn
-        torch.manual_seed(SEED)
+        torch.manual_seed(seed)
+        self.seed = seed
         self.params = dict(hidden=hidden, emb=emb, seq=SEQ)
 
         class Net(nn.Module):
@@ -77,7 +78,7 @@ class BiLSTM:
         seq, stat, y, sid = tr
         ok = ~np.isnan(y).any(1)
         ds = TensorDataset(*(torch.from_numpy(a[ok]) for a in (seq, stat, y)), torch.from_numpy(sid[ok]))
-        dl = DataLoader(ds, batch_size=batch, shuffle=True, generator=torch.Generator().manual_seed(SEED))
+        dl = DataLoader(ds, batch_size=batch, shuffle=True, generator=torch.Generator().manual_seed(self.seed))
         opt = torch.optim.Adam(self.net.parameters(), lr=lr)
         loss_fn = torch.nn.HuberLoss(delta=0.5)
         best, best_state, bad = np.inf, None, 0

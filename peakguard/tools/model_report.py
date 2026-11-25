@@ -103,6 +103,35 @@ def tuning_doc() -> None:
         for m, r in T["before_after"].items():
             L.append(f"| {NAME.get(m, m)} | {r['mae'][0]:.3f} → {r['mae'][1]:.3f} | {r['tp'][0]} → {r['tp'][1]} | {r['fp'][0]} → {r['fp'][1]} | {r['fn'][0]} → {r['fn'][1]} |")
         L.append("")
+    S = MODEL_DIR / "seeds.json"
+    if S.exists():
+        J = json.loads(S.read_text(encoding="utf-8"))
+        L += ["## 시드(난수 시작값)별 흔들림 확인", "",
+              f"같은 설정을 시드만 바꿔 학습했습니다 (시드 {', '.join(map(str, J['seeds']))}; Bi-LSTM 비교 설정은 앞의 3개). "
+              "시드는 자료를 무작위로 뽑는 순서만 바꾸므로, 그 차이로 생기는 성적 차이가 '우연의 폭'입니다.",
+              "판단 기준: 두 설정의 **검증기간 평균 MAE 차이**가 **시드 흔들림 폭(최대−최소)** 보다 크면 '우연이 아닌 차이'로 봅니다. "
+              "시험기간 성적은 고르는 데 쓰지 않고 흔들림 폭만 보고합니다(세 번째 화면과 같은 공통 표본, 실제 위험 39건).", "",
+              "| 모델 | 설정 | 검증 MAE 평균 (최소~최대) | 시험 MAE 평균 (최소~최대) | 시험 맞힘 (최소~최대) | 시험 헛경보 (최소~최대) |",
+              "|---|---|---|---|---|---|"]
+        for m, R in J["models"].items():
+            for lab, sm in R["summary"].items():
+                v, t = sm["val"], sm["test"]
+                L.append(f"| {NAME.get(m, m)} | {lab} | {v['mae']['mean']:.3f} ({v['mae']['min']:.3f}~{v['mae']['max']:.3f}) | "
+                         f"{t['mae']['mean']:.3f} ({t['mae']['min']:.3f}~{t['mae']['max']:.3f}) | "
+                         f"{t['tp']['mean']:.1f} ({t['tp']['min']}~{t['tp']['max']}) | {t['fp']['mean']:.1f} ({t['fp']['min']}~{t['fp']['max']}) |")
+        L += ["", "| 모델 | 비교 | 검증 평균 MAE 차이 | 시드 흔들림 폭 | 판단 |", "|---|---|---|---|---|"]
+        for m, R in J["models"].items():
+            j = R["judge"]; keys = list(R["summary"])
+            verdict = ("현재 설정이 우연보다 큰 차이로 좋음 → 교체 유지" if j["clear"] and j["diff_mean"] > 0 and m != "BiLSTM" else
+                       "차이가 흔들림 안 → 처음 설정과 구별 안 됨" if m != "BiLSTM" and not j["clear"] else
+                       "비교 설정이 흔들림보다 크게 좋지 않음 → 현재 설정 유지" if m == "BiLSTM" and not (j["clear"] and j["diff_mean"] > 0) else
+                       "비교 설정이 우연보다 큰 차이로 좋음 → 교체 검토" if m == "BiLSTM" else "현재 설정이 나쁨 → 되돌리기 검토")
+            L.append(f"| {NAME.get(m, m)} | {keys[0]} → {keys[1]} | {j['diff_mean']:+.3f} kW ({j['diff_pct']:+.1f}%) | {j['spread']:.3f} kW | {verdict} |")
+        rep = [NAME.get(m, m) for m, R in J["models"].items() if R.get("reproducible")]
+        if rep:
+            L += ["", f"재현성: {', '.join(rep)} 는 같은 시드(42)로 두 번 학습했을 때 검증기간 예측값이 전부 같았습니다. "
+                  "(Bi-LSTM 은 설정값 비교 때 다시 학습해 저장된 검증 MAE 0.669 가 그대로 나옴.) 같은 코드·자료·라이브러리 버전 기준입니다."]
+        L.append("")
     out = ROOT / "docs" / "TUNING.md"
     out.write_text("\n".join(L) + "\n", encoding="utf-8")
     print(f"저장: {out}")
