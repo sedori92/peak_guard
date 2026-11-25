@@ -6,7 +6,7 @@
 ![프로젝트 구조도](docs/architecture.png)
 
 - 기술문서: **[docs/TECHNICAL.md](docs/TECHNICAL.md)** · 화면-API-DB 연결표: **[docs/CODE_MAP.md](docs/CODE_MAP.md)** · 모델 선정 근거: **[docs/MODEL_SELECTION.md](docs/MODEL_SELECTION.md)** · 설정값 비교: **[docs/TUNING.md](docs/TUNING.md)**
-- 시나리오 테스트: **[docs/TEST_SCENARIOS.md](docs/TEST_SCENARIOS.md)** · 에너지플래너 적용 가능성·개선 방향: **[docs/PLANNER_REVIEW.md](docs/PLANNER_REVIEW.md)** · 기업 시스템(MariaDB) 연계: **[docs/INTEGRATION.md](docs/INTEGRATION.md)**
+- **예측모델 도감(팀원 학습용): [docs/MODEL_GUIDE.md](docs/MODEL_GUIDE.md)** · 시나리오 테스트: **[docs/TEST_SCENARIOS.md](docs/TEST_SCENARIOS.md)** · 에너지플래너 적용 가능성·개선 방향: **[docs/PLANNER_REVIEW.md](docs/PLANNER_REVIEW.md)** · 기업 시스템(MariaDB) 연계: **[docs/INTEGRATION.md](docs/INTEGRATION.md)**
 - 팀원별 담당 폴더: **[docs/TEAM.md](docs/TEAM.md)** · 깃허브 공동 작업 순서: **[docs/GITHUB_GUIDE.md](docs/GITHUB_GUIDE.md)**
 
 ## 1. 실행 — 번호만 입력하면 됩니다
@@ -30,6 +30,7 @@ python run.py 11 --file 새파일.csv                  # 11. CSV → API 업로�
 python run.py eda      # 사용패턴·피크 분석 그래프 → reports/eda/
 
 python -m peakguard.tools.tune           # 설정값(하이퍼파라미터) 비교 → models/tuning.json
+python -m peakguard.tools.model_guide    # 예측모델 도감 그림 → docs/model_guide/
 python -m peakguard.tools.model_report   # 선정 근거·설정값 문서 다시 쓰기 → docs/MODEL_SELECTION.md, docs/TUNING.md
 python -m peakguard.models.train --compare   # 기상 포함/미포함 비교 학습 → models/compare_weather.json
 ```
