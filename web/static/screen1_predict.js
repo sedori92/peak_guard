@@ -40,6 +40,28 @@
     S.setThrOptions(S.DATA.thr_options);
     document.querySelectorAll('.js-model').forEach((e) => { e.textContent = `${S.DATA.method_name} · ${S.DATA.model}`; });
     S.i = Math.max(0, S.F.findIndex((x) => x.t === '12:30'));
+    S.meter(date);
+  };
+
+  // ---------- 계측 상태: 재생 = 그날 하루, 실시간 연결 = 가장 최근 실측까지 24시간 ----------
+  S.meter = async (date) => {
+    const txt = $('#metertxt'), btn = $('#meterbtn'), bar = $('#meterbar');
+    let M;
+    try { M = await PG.api('api/meter_status' + (date ? '?date=' + date : '')); } catch (e) { txt.textContent = '계측 상태를 불러오지 못했습니다: ' + e.message; return; }
+    const n = M.check.length;
+    bar.classList.toggle('warn', n > 0);
+    txt.replaceChildren(`${M.from ? M.from.slice(5) + ' ~ ' + M.to.slice(5) : ''} · 채널 ${M.total}개 중 정상 `, PG.b(String(M.ok)), ' · 점검 필요 ', PG.b(String(n)),
+      n ? ' (' + Object.entries(M.check.flatMap((c) => c.issues.map((i) => i.kind)).reduce((o, k) => ((o[k] = (o[k] || 0) + 1), o), {})).map(([k, v]) => `${k} ${v}`).join(' · ') + ')' : '',
+      M.common ? ' — ' + M.common : '');
+    btn.hidden = !n;
+    btn.onclick = () => {
+      const t = document.createElement('table'); t.className = 'perf';
+      const tr0 = document.createElement('tr'); ['채널', '구분', '점검 내용', '마지막 측정'].forEach((h) => { const th = document.createElement('th'); th.textContent = h; tr0.append(th); }); t.append(tr0);
+      M.check.forEach((c) => { const tr = document.createElement('tr'); [c.label + ' (' + c.channel + ')', c.kind, c.issues.map((i) => `${i.kind}: ${i.detail}`).join(' / '), c.last || '—'].forEach((v) => { const td = document.createElement('td'); td.textContent = v; tr.append(td); }); t.append(tr); });
+      const w = document.createElement('div'); w.className = 'tscroll'; w.append(t);
+      const rules = document.createElement('p'); rules.className = 'note'; rules.textContent = '기준: ' + M.rules.map(([k, v]) => `${k} = ${v}`).join(' · ') + '. ' + M.note;
+      PG.dialog(`계측 상태 — 점검 필요 채널 ${n}개 (${M.from} ~ ${M.to})`, [w, rules], [['닫기']]);
+    };
   };
 
   // ---------- 피크 기준 콤보박스: 최근 30일 / 전월 / 당월 / 7~9월 / 12~2월 (모두 95번째 백분위수) ----------
@@ -85,9 +107,9 @@
     const msg = $('#msg'); msg.replaceChildren();
     const line = document.createElement('div');
     if (f.thr == null) line.append('피크 기준을 계산할 실측이 부족합니다 — 오른쪽에서 다른 기준을 고르세요');
-    else if (s.lvl === 'bad') line.append('최초 위험 예상 ', PG.b(addMin(f.t, 15 * (s.first + 1))), ' · 최대 예상 ', PG.b(fmt(s.mx, 2) + ' kW'), ' · 기준의 ', PG.b(fmt(s.mx / f.thr * 100, 0) + '%'),
+    else if (s.lvl === 'bad') line.append('최초 위험 예상 ', PG.b(addMin(f.t, 15 * (s.first + 1))), ' · 최대 예상 ', PG.b(fmt(s.mx, 2) + ' kW'), ' · 피크 기준 대비 ', PG.b(fmt(s.mx / f.thr * 100, 0) + '%'),
       s.mx >= f.thr ? ` (기준 초과 +${fmt(s.mx - f.thr, 2)} kW)` : '');
-    else line.append('다음 1시간 최대 ', PG.b(fmt(s.mx, 2) + ' kW'), ' · 기준의 ', PG.b(fmt(s.mx / f.thr * 100, 0) + '%'), ' · 기준까지 여유 ', PG.b(fmt(f.thr - s.mx, 2) + ' kW'));
+    else line.append('다음 1시간 최대 ', PG.b(fmt(s.mx, 2) + ' kW'), ' · 피크 기준 대비 ', PG.b(fmt(s.mx / f.thr * 100, 0) + '%'), ' · 기준까지 여유 ', PG.b(fmt(f.thr - s.mx, 2) + ' kW'));
     const sm = document.createElement('small');
     sm.textContent = s.lvl === 'bad' ? `먼저 점검할 호실: ${S.topRooms(f, 3).map((r) => roomName(r[0])).join(', ')} → 오른쪽 '경보발령 선택'에서 발령` : `다음 갱신 ${addMin(f.t, 15)}`;
     msg.append(line, sm);
@@ -112,7 +134,7 @@
   // 상태 띠 ④: 현재 수요전력 (직전 15분 평균, 96개 계측채널 합산)
   function drawKpi(f) {
     setv('#k1', fmt(f.y, 2), 'kW');
-    $('#k1s').textContent = `${f.t} 기준 · 96개 계측채널 합산` + (f.thr ? ` · 기준의 ${fmt(f.y / f.thr * 100, 0)}%` : '');
+    $('#k1s').textContent = `${f.t} 기준 · 96개 계측채널 합산` + (f.thr ? ` · 피크 기준 대비 ${fmt(f.y / f.thr * 100, 0)}%` : '');
   }
   // ---------- 합산 수요전력 구성 (호실 34개 / 공용 62개) — 콤보버튼 오른쪽 ----------
   function drawShare(f) {
@@ -278,6 +300,7 @@
       bar.append(msg, back);
       clearInterval(S.liveTimer); S.liveTimer = setInterval(() => S.goLive(true), LIVE_EVERY);
       PG.resetAlerts && PG.resetAlerts();
+      if (!quiet || sy.inserted) S.meter();
       S.render();
     } catch (e) { bar.hidden = false; bar.textContent = '실시간 연결 실패: ' + e.message; }
   };

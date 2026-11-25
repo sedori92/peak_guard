@@ -111,3 +111,14 @@ def test_s10_live_connect_and_upload():
     assert "inserted" in s or "message" in s or "status" in s
     st = client.get("/api/live/status").json()
     assert "api_configured" in st
+
+
+def test_s11_meter_status():
+    """S11 계측 상태: 측정 자료만으로 채널별 이상을 찾는다 (과제 세부 1, 추가 답변 1-2·1-3·5번). 음수 채널은 점검 필요."""
+    m = client.get("/api/meter_status", params={"date": "2026-10-28"}).json()
+    assert m["total"] == 96 and m["ok"] + len(m["check"]) == 96
+    kinds = {i["kind"] for c in m["check"] for i in c["issues"]}
+    assert "음수" in kinds
+    g = client.get("/api/meter_status", params={"date": "2026-10-20"}).json()  # 수집 재개일: 전 채널 빠진 칸
+    assert g["common"]
+    assert client.get("/api/meter_status").json()["total"] == 96

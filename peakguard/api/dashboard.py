@@ -35,6 +35,13 @@ def days():
             "test_start": info()["test_start"], "test_end": info()["test_end"]}
 
 
+@router.get("/meter_status")
+def meter_status(date: str | None = Query(None, description="YYYY-MM-DD (비우면 가장 최근 실측까지 24시간)")):
+    """계측 상태: 측정 자료만으로 채널별 끊김·빠진 칸·음수·누적 감소·누적·수요 불일치·값 고정 점검."""
+    from ..eda.meter_status import status
+    return status(date)
+
+
 @router.get("/eval")
 def evaluation():
     ev = q("SELECT * FROM st_eval ORDER BY split, scope, model_name, horizon_min")

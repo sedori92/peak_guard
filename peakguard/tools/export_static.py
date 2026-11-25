@@ -37,6 +37,9 @@ def export(date: str = DEFAULT_DATE, model: str = DEFAULT_MODEL, out: str | None
     days = dashboard.days()
     api["api/days"] = days
     dates = [d["date"] for d in days["days"]]
+    api["api/meter_status"] = dashboard.meter_status(None)                 # 계측 상태 (실시간 연결 = 최근 24시간)
+    for d in dates:
+        api[f"api/meter_status?date={d}"] = dashboard.meter_status(d)
     for d in dates:
         day = None
         for f in days["families"]:

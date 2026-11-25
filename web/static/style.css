@@ -351,3 +351,9 @@ button.btn{border:0;cursor:pointer;font:inherit;font-size:13px;font-weight:600}
 .selbest.small{font-size:13.5px}
 table.perf td.mincell{font-weight:700;color:var(--amber)}
 .extragrid .card.wide .tscroll{max-height:none}
+
+.meterbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:-4px 0 14px;padding:8px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-size:13px;color:var(--ink)}
+.meterbar .mt{font-weight:700}
+.meterbar.warn{border-color:var(--amber)}
+.meterbar button{font:inherit;font-size:12px;border:1px solid var(--amber);background:transparent;color:var(--amber);border-radius:8px;padding:4px 10px;cursor:pointer;margin-left:auto}
+.meterbar button[hidden]{display:none}
