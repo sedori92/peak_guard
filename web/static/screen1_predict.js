@@ -290,12 +290,16 @@
   const liveUI = (on) => {
     ['#play', '#spd', '#dsel'].forEach((sel) => { $(sel).disabled = on; });
     $('#modetxt').textContent = on ? '실시간' : '재생 중'; $('#modepill').classList.toggle('on', on);
-    $('#golive').textContent = on ? '실시간 연결됨' : '실시간 연결';
+    // [실시간 연결] 버튼 3가지 모습: 연결 전(초록 채움) · 연결 중(회색, 누를 수 없음) · 연결됨(초록 테두리 + 깜박이는 점, 누르면 다시 확인)
+    const g = $('#golive'); g.classList.toggle('connected', on); g.classList.remove('busy'); g.disabled = false;
+    g.textContent = on ? '실시간 연결됨' : '실시간 연결';
+    g.title = on ? '연결됨 — 누르면 새 자료를 바로 다시 확인 (5분마다 자동 확인)' : '2026-11-02 16:30 이후 새 데이터를 중복 없이 넣고, 가장 최근 실측 기준으로 예측';
     $('.replay').classList.toggle('is-live', on);
   };
   S.goLive = async (quiet) => {
     const bar = $('#livebar');
-    if (!quiet) { bar.hidden = false; bar.textContent = '실시간 연결 중… (마지막 실측 이후 새 데이터 확인 → 예측)'; }
+    const g = $('#golive');
+    if (!quiet) { bar.hidden = false; bar.textContent = '실시간 연결 중… (마지막 실측 이후 새 데이터 확인 → 예측)'; g.disabled = true; g.classList.add('busy'); g.textContent = '연결 중…'; }
     try {
       const sy = await PG.api('api/live/sync', { method: 'POST' });
       const model = S.modelId();
@@ -317,7 +321,7 @@
       PG.resetAlerts && PG.resetAlerts();
       if (!quiet || sy.inserted) S.meter();
       S.render();
-    } catch (e) { bar.hidden = false; bar.textContent = '실시간 연결 실패: ' + e.message; }
+    } catch (e) { bar.hidden = false; bar.textContent = '실시간 연결 실패: ' + e.message; liveUI(!!S.live); }
   };
   // [실시간 연결] 버튼 → 빠진 자료가 있으면 먼저 물어봄
   //   ① 파일 끌어다놓기 : 기업에서 받은 CSV를 올려 빠진 기간 채움 → 실시간 연결 → 현재 시각으로 표시

@@ -102,8 +102,12 @@
 
   <!-- ===================== 두 번째 화면: 피크이력 및 영향도 분석 (모두 실측) ===================== -->
   <section class="scr" id="s-history" hidden>
+    <!-- 하위 메뉴: 주소 #history/report · #history/cause · #history/pattern · #history/weather (app.js) -->
+    <nav class="subtabs" aria-label="피크이력 분석 하위 메뉴">
+      <a href="#history/report" data-sub="report">1. 피크 보고서</a><a href="#history/cause" data-sub="cause">2. 피크 원인(영향도)</a><a href="#history/pattern" data-sub="pattern">3. 사용패턴</a><a href="#history/weather" data-sub="weather">4. 기상·이상 패턴</a>
+    </nav>
     <!-- 상단: 최고관리자 보고서 — 피크 변동기록 | 영향도 Top 10 | 피크 시각 평소 대비 증가 Top 10 -->
-    <div class="card" id="rep">
+    <div class="card" id="rep" data-sub="report">
       <h2>최고관리자 보고서 <span class="sub">실측 기준 · 피크 변동기록 + 피크 시각 영향도 Top 10 + 평소 대비 증가 Top 10 · 스프레드시트(.xlsx) 보기·내려받기·출력</span></h2>
       <div class="repctl">
         <div class="seg" role="group" aria-label="보고 기간">
@@ -121,7 +125,8 @@
       <p class="note">줄을 누르면 오른쪽 두 표와 아래 배치도·영향도가 그 구간의 피크 시각으로 바뀝니다. 건물 합계 = 96개 계측채널 단순합. 영향도 = 피크 시각 사용량과 비중 (건물 대비 = 96채널 합계 대비, 호실 대비 = 호실 34개 합계 대비 — 기업 3차 답변 ④). 평소 = 같은 요일·같은 시각 직전 4주 실측 평균, 증가 = 그 시각 실측 − 평소 (그날 유독 더 써서 피크를 만든 채널). 비중은 피크 시각의 사용 비중이며, 그 호실이 피크를 일으킨 인과적 영향이나 전기요금 배분율과는 다릅니다 (기업 3차 답변 ③).</p>
     </div>
     <!-- 하단: 고른 피크 시각의 층별 호실 배치도 + 전체 및 채널별 영향도 (모두 실측) -->
-    <div class="grid2 histgrid">
+    <div class="subnote" data-sub="cause">고른 피크 시각 <b id="causet">—</b> · 다른 시각은 '1. 피크 보고서'에서 줄을 눌러 고릅니다</div>
+    <div class="grid2 histgrid" data-sub="cause">
       <div class="card">
         <h2>층별 호실 배치도 <span class="sub" id="snapt">—</span></h2>
         <div class="plan" id="plan"></div>
@@ -136,32 +141,36 @@
       </div>
     </div>
     <!-- 사용패턴 분석 (실측, 기업 과제 원문 목표 1 · 세부 2·4·5) -->
-    <div class="card" id="pat">
+    <div class="card" id="pat" data-sub="pattern weather">
       <h2>사용패턴 분석 <span class="sub" id="patsub">실측 기준 · 건물 합계(96채널) 15분 수요전력</span></h2>
       <div class="repctl">
         <div class="seg" role="group" aria-label="분석 기간" id="patseg">
           <button type="button" data-r="all" aria-pressed="true">전체 기간</button><button type="button" data-r="90d">최근 90일</button><button type="button" data-r="30d">최근 30일</button>
         </div>
-        <span class="note" id="patinfo">—</span>
+        <span class="note" id="patinfo">—</span><span class="note">· 기간 끝 = '1. 피크 보고서'의 기준일</span>
       </div>
       <div class="patgrid">
-        <div class="pcell"><h3>요일 × 시간대 평균 수요전력 <span class="sub">시간대·요일별 사용 특성</span></h3><svg id="pheat" role="img" aria-label="요일 시간대 히트맵"></svg><div class="tscroll"><table class="perf" id="pmonth"></table></div></div>
-        <div class="pcell"><h3>절감이 필요한 시간대 <span class="sub" id="psavesub">—</span></h3><svg id="psave" role="img" aria-label="시간대별 위험 빈도"></svg><div id="psavelist" class="plist"></div></div>
-        <div class="pcell"><h3>피크 반복 패턴 <span class="sub">평일 일 최대가 나온 시각</span></h3><svg id="ppeak" role="img" aria-label="일 최대 발생 시각 분포"></svg><p class="note strong" id="ppeaksum">—</p></div>
-        <div class="pcell"><h3>피크 발생 전 사용패턴 <span class="sub">위험일 피크 2시간 전부터 (피크 = 100%)</span></h3><svg id="ppre" role="img" aria-label="피크 전 곡선"></svg><p class="note strong" id="ppresum">—</p></div>
-        <div class="pcell"><h3>기상요인 관계 <span class="sub">평일 일 최고기온 × 일 최대 수요전력</span></h3><svg id="pwx" role="img" aria-label="기온과 일 최대 산점도"></svg><p class="note strong" id="pwxsum">—</p><div class="wxreview" id="pwxrev"></div></div>
-        <div class="pcell"><h3>이상 사용패턴 <span class="sub" id="panosub">—</span></h3><div class="tscroll"><table class="perf" id="pano"></table></div><p class="note" id="panorule">—</p></div>
+        <div class="pcell" data-sub="pattern"><h3>요일 × 시간대 평균 수요전력 <span class="sub">시간대·요일별 사용 특성</span></h3><svg id="pheat" role="img" aria-label="요일 시간대 히트맵"></svg><div class="tscroll"><table class="perf" id="pmonth"></table></div></div>
+        <div class="pcell" data-sub="pattern"><h3>절감이 필요한 시간대 <span class="sub" id="psavesub">—</span></h3><svg id="psave" role="img" aria-label="시간대별 위험 빈도"></svg><div id="psavelist" class="plist"></div></div>
+        <div class="pcell" data-sub="pattern"><h3>피크 반복 패턴 <span class="sub">평일 일 최대가 나온 시각</span></h3><svg id="ppeak" role="img" aria-label="일 최대 발생 시각 분포"></svg><p class="note strong" id="ppeaksum">—</p></div>
+        <div class="pcell" data-sub="pattern"><h3>피크 발생 전 사용패턴 <span class="sub">위험일 피크 2시간 전부터 (피크 = 100%)</span></h3><svg id="ppre" role="img" aria-label="피크 전 곡선"></svg><p class="note strong" id="ppresum">—</p></div>
+        <div class="pcell" data-sub="weather"><h3>기상요인 관계 <span class="sub">평일 일 최고기온 × 일 최대 수요전력</span></h3><svg id="pwx" role="img" aria-label="기온과 일 최대 산점도"></svg><p class="note strong" id="pwxsum">—</p><div class="wxreview" id="pwxrev"></div></div>
+        <div class="pcell" data-sub="weather"><h3>이상 사용패턴 <span class="sub" id="panosub">—</span></h3><div class="tscroll"><table class="perf" id="pano"></table></div><p class="note" id="panorule">—</p></div>
       </div>
     </div>
   </section>
 
   <!-- ===================== 세 번째 화면: 모델성능 및 오경보율 비교 ===================== -->
   <section class="scr" id="s-perf" hidden>
+    <!-- 하위 메뉴: 주소 #perf/select · #perf/method · #perf/detail · #perf/weather (app.js). 피크 기준 콤보는 모든 하위 메뉴 위에 -->
+    <nav class="subtabs" aria-label="모델 성능 비교 하위 메뉴">
+      <a href="#perf/select" data-sub="select">1. 선정 결론</a><a href="#perf/method" data-sub="method">2. 방식별 성능</a><a href="#perf/detail" data-sub="detail">3. 정확도 상세</a><a href="#perf/weather" data-sub="weather">4. 기상 비교</a>
+    </nav>
     <!-- 맨 위: 피크 기준점 선택 (첫 화면 '피크 기준' 콤보박스와 같은 다섯 가지, 서로 연동) -->
     <div class="card auxnote perfhead">
       <div class="chctl"><label for="pthrsel">피크 기준</label><select id="pthrsel" aria-label="성능 비교에 쓸 피크 기준점"></select><span class="note" id="pthrinfo"></span></div>
       <p id="perfnote">—</p>
-      <p class="note" id="perfprep"></p>
+      <p class="note" id="perfprep" data-sub="select"></p>
     </div>
     <div id="perfsections"></div>
   </section>

@@ -1,6 +1,6 @@
 # 화면 · API · DB 연결표
 
-화면에 보이는 것 하나하나가 어느 코드와 어느 DB 표에서 오는지 정리한 표입니다.
+하위 메뉴 전환은 web/static/app.js (`PG.applySub`, 각 칸의 `data-sub` 표시)가 맡습니다. 화면에 보이는 것 하나하나가 어느 코드와 어느 DB 표에서 오는지 정리한 표입니다.
 읽는 순서: **화면 요소 → 화면 코드(web/static) → API 주소 → 계산 코드(peakguard) → DB 표**.
 각 파이썬 파일 맨 위 설명에도 같은 내용이 "연결 ─ 화면 / API / DB" 세 줄로 들어 있습니다.
 
@@ -33,7 +33,7 @@ API 는 DB 를 직접 고치지 않고(업로드·연락처·경보 기록 제�
 | [실시간 연결] | screen1_predict.js `S.goLive` | `POST /api/live/sync` → `POST /api/live/predict` | live/sync.py → live/predictor.py | measurement·weather_15m (쓰기), live_forecast (쓰기) |
 | [파일 끌어다놓기] | screen1_predict.js `uploadDialog` | `POST /api/upload` | api/upload.py, collect/power_csv.py, collect/weather.py | measurement·weather_15m·upload_log |
 
-## ② 피크이력 및 영향도 분석 (모두 실측)
+## ② 피크이력 분석 (모두 실측) — 하위 메뉴 1. 피크 보고서 · 2. 피크 원인(영향도) · 3. 사용패턴 · 4. 기상·이상 패턴 (주소 #history/report·cause·pattern·weather)
 
 | 화면 요소 | 화면 코드 | API | 계산 코드 | DB 표 |
 |---|---|---|---|---|
@@ -45,7 +45,7 @@ API 는 DB 를 직접 고치지 않고(업로드·연락처·경보 기록 제�
 | 사용패턴 분석 7칸 | screen2_patterns.js | `GET /api/patterns` | eda/analysis.py | measurement·weather_15m |
 | 기상 데이터 검토 상자 | screen2_patterns.js `weather` | `/api/patterns` 의 `weather_review` | evaluation/extra.py `weather_summary` | weather_15m·st_eval |
 
-## ③ 모델성능 및 오경보율 비교
+## ③ 모델 성능 비교 — 하위 메뉴 1. 선정 결론 · 2. 방식별 성능 · 3. 정확도 상세 · 4. 기상 비교 (주소 #perf/select·method·detail·weather)
 
 | 화면 요소 | 화면 코드 | API | 계산 코드 | DB 표 / 파일 |
 |---|---|---|---|---|

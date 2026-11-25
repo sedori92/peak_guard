@@ -31,13 +31,17 @@
   H2.show = () => { if (!H2.loaded) { H2.loaded = true; loadReport(); PG.PAT && PG.PAT.load(); } };
 
   // ---------- 상단: 최고관리자 보고서 ----------
+  // [스프레드시트 보기·출력] 버튼 활성/비활성: 보고서 자료가 있을 때만 누를 수 있음
+  const setSheetBtn = (on, why) => { const b = $('#repdl'); b.disabled = !on; b.title = on ? '이 기간 보고서를 시트별로 보고, 내려받거나 출력' : why; };
   async function loadReport() {
     const d = $('#repdate').value;
+    setSheetBtn(false, '보고서를 불러오는 중입니다');
     let r = null;
     try { r = await PG.api(key(H2.period, d)); } catch (e) { r = null; $('#repinfo').textContent = e.message; }
     const rec = $('#reprec'), tp = $('#reptop'); rec.replaceChildren(); tp.replaceChildren();
     H2.rep = r;
-    if (!r || !r.records.length) { if (r) $('#repinfo').textContent = `${r.start} ~ ${r.end}: 96개 채널이 모두 수신된 데이터가 없습니다.`; return; }
+    if (!r || !r.records.length) { if (r) $('#repinfo').textContent = `${r.start} ~ ${r.end}: 96개 채널이 모두 수신된 데이터가 없습니다.`; setSheetBtn(false, '이 기간에는 보고서로 만들 실측이 없습니다'); return; }
+    setSheetBtn(true);
     const sm = r.summary;
     $('#repinfo').textContent = `${r.title} ${r.start} ~ ${r.end} · 최대 ${fmt(sm.peak_kw, 2)} kW (${sm.peak_time.slice(5)})` +
       (sm.prev_change_pct != null ? ` · 직전 대비 ${sm.prev_change_pct > 0 ? '+' : ''}${fmt(sm.prev_change_pct, 1)}%` : '') + ` · 수신률 ${fmt(sm.coverage_pct, 0)}%`;
@@ -59,9 +63,11 @@
   //   출력: 서버 컴퓨터에 연결된 프린터를 확인 → 없으면 '프린터 연결 안 됨', 있으면 인쇄 창 열기
   const mk = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
   async function showSheet() {
-    const d = $('#repdate').value, q = `period=${H2.period}&date=${d}`;
+    const d = $('#repdate').value, q = `period=${H2.period}&date=${d}`, btn = $('#repdl'), label = btn.textContent;
     let pv;
+    btn.disabled = true; btn.textContent = '불러오는 중…';
     try { pv = await PG.api(`api/report/preview?${q}`); } catch (e) { $('#repinfo').textContent = e.message; return; }
+    finally { btn.textContent = label; btn.disabled = !(H2.rep && H2.rep.records.length); }
     const tabs = mk('div', 'seg sheettabs'), body = mk('div', 'sheetbody'), msg = mk('p', 'note');
     const show = (k) => {
       tabs.querySelectorAll('button').forEach((b, j) => b.setAttribute('aria-pressed', j === k ? 'true' : 'false'));
@@ -97,7 +103,7 @@
 
   // 피크 시각 고르기 → 배치도·영향요인 갱신
   async function pick(t) {
-    H2.time = t;
+    H2.time = t; $('#causet').textContent = t;
     document.querySelectorAll('#reprec tr').forEach((tr) => tr.classList.toggle('sel', tr.dataset.t === t));
     try { H2.snap = await PG.api('api/snapshot?time=' + encodeURIComponent(t)); drawPlan(H2.snap); drawTop(H2.snap); } catch (e) { $('#snapt').textContent = e.message; $('#plan').replaceChildren(); }
     loadRise(t);
@@ -105,7 +111,10 @@
   }
 
   // ---------- 상단 가운데: 영향도 Top 10 (고른 피크 시각의 채널별 실측 kW · 건물 합계 대비) ----------
-  const toRoom = (c) => { $('#fsel').value = c; loadInfluence(); };
+  // 호실 줄을 누르면 '2. 피크 원인(영향도)' 하위 메뉴로 넘어가 그 호실 영향도를 보여 줌
+  const toRoom = (c) => { $('#fsel').value = c; loadInfluence(); if (PG.sub.history !== 'cause') location.hash = '#history/cause'; };
+  // 하위 메뉴를 바꿔 숨어 있던 그래프가 보일 때 화면 폭에 맞춰 다시 그림 (app.js PG.applySub)
+  H2.redraw = () => { if (H2.inf) drawInfluence(H2.inf); };
   function drawTop(d) {
     const tp = $('#reptop'); tp.replaceChildren();
     $('#reppk').textContent = `${d.time} · 건물 ${fmt(d.total_kw, 2)} kW`;

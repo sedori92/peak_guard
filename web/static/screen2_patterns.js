@@ -23,6 +23,7 @@
   PG.onTheme.push(() => P.D && draw());
 
   function draw() { heat(); monthly(); saving(); peaks(); pre(); weather(); anomalies(); }
+  P.redraw = () => { if (P.D) draw(); };
 
   // 요일 × 시간대 히트맵
   function heat() {
@@ -101,13 +102,13 @@
     for (let v = x0; v <= x1; v += Math.max(1, Math.round((x1 - x0) / 6))) txt(svg, x(v), H - 6, v + '℃', { 'text-anchor': 'middle' });
     w.points.forEach((p) => { const c = el('circle', { cx: x(p.tmax), cy: y(p.peak), r: 3.5, fill: css('--amber'), opacity: 0.75 }, svg); const ti = document.createElementNS(PG.NS, 'title'); ti.textContent = `${p.date} 최고 ${p.tmax}℃ · 습도 ${p.hum}% · 일 최대 ${p.peak} kW`; c.append(ti); });
     $('#pwxsum').textContent = w.summary;
-    // 기상 데이터 검토: ① 연계 ② 관계 분석 ③ 예측모델 비교·결론 (세 번째 화면 ⑤ 요약)
+    // 기상 데이터 검토: ① 연계 ② 관계 분석 ③ 예측모델 비교·결론 (세 번째 화면 '4. 기상 비교' 요약)
     const WR = P.D.weather_review || {}, box = $('#pwxrev'); box.replaceChildren();
     const li = (h, t) => { const p = document.createElement('p'); p.append(PG.b(h), ' ' + t); box.append(p); };
     box.append(Object.assign(document.createElement('h4'), { textContent: '기상 데이터 검토 (기업 과제: 기상요인 연계·관계 분석·모델 비교)' }));
     li('① 연계', `기상청 ASOS 광주(156) 분자료 → 15분 기온·습도 ${(WR.slots || 0).toLocaleString()}칸 (${WR.from ? WR.from.slice(0, 10) : '—'} ~ ${WR.to ? WR.to.slice(0, 10) : '—'}), [실시간 연결] 때 기상 CSV·API로 함께 업데이트`);
     li('② 관계 분석', `${w.summary}`);
-    if (WR.n) li('③ 예측모델 비교', `기온(평소 대비·1시간 변화)을 넣은 학습과 뺀 학습을 같은 기간으로 비교 — 검증기간 MAE가 좋아진 모델 ${WR.better_with}/${WR.n}개 → ${WR.use_weather ? '예측 입력에 사용' : '이번 자료(7~11월)에서는 예측 입력에 미채택, 겨울 자료가 쌓이면 재검증'} (세 번째 화면 ⑤)`);
+    if (WR.n) li('③ 예측모델 비교', `기온(평소 대비·1시간 변화)을 넣은 학습과 뺀 학습을 같은 기간으로 비교 — 검증기간 MAE가 좋아진 모델 ${WR.better_with}/${WR.n}개 → ${WR.use_weather ? '예측 입력에 사용' : '이번 자료(7~11월)에서는 예측 입력에 미채택, 겨울 자료가 쌓이면 재검증'} (세 번째 화면 '4. 기상 비교')`);
   }
   // 이상 사용패턴
   function anomalies() {

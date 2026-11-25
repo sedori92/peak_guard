@@ -1,6 +1,6 @@
 """[4] 세 번째 화면 추가 평가 — 시험기간 저장 예측(st_forecast)과 실측으로 계산
 
-연결 ─ 화면: ③ 선정 결론 + ③ 발생시각 오차 · ④ 조건별 · ⑤ 기상 비교 · ⑥ 기간별 표, ② 기상 데이터 검토 상자
+연결 ─ 화면: ③ '1. 선정 결론' · '3. 정확도 상세'(발생시각 오차·조건별·기간별) · '4. 기상 비교', ② '4. 기상·이상 패턴'의 기상 데이터 검토 상자
        API : GET /api/performance · /api/patterns(weather_review)
        DB  : st_forecast·st_eval·weather_15m (읽기)
 
@@ -189,7 +189,7 @@ def selection(sections: list[dict]) -> dict:
 
 
 def weather_summary() -> dict:
-    """두 번째 화면 '기상 데이터 검토' 칸: 연계 상태 + 모델 비교 결론 (세 번째 화면 ⑤ 요약)."""
+    """두 번째 화면 '기상 데이터 검토' 칸: 연계 상태 + 모델 비교 결론 (세 번째 화면 '4. 기상 비교' 요약)."""
     from ..api.common import q
     from ..config import USE_WEATHER
     w = q("SELECT MIN(measured_at) a, MAX(measured_at) b, COUNT(temperature_c) n FROM weather_15m")

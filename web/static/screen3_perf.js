@@ -31,9 +31,16 @@
       `짧은 끊김(1시간 이내) ${pr.short_interpolated_cells.toLocaleString()}칸은 앞뒤 값으로 보간, 긴 결측 ${pr.long_gap_cells.toLocaleString()}칸은 보간하지 않고 학습에서 제외(학습기간 해당 ${pr.excluded_train_cells.toLocaleString()}칸). ` +
       `절댓값·0으로 바꾸지 않음. 성능 평가는 실측이 있는 칸만 사용.` : '';
     const box = $('#perfsections'); box.replaceChildren();
-    box.append(selectionCard(D));
-    D.sections.forEach((s) => box.append(section(s)));
-    box.append(extraCards(D));
+    // 하위 메뉴(app.js): 1. 선정 결론 = select · 2. 방식별 성능 = method · 3. 정확도 상세 = detail · 4. 기상 비교 = weather
+    const sel1 = selectionCard(D); sel1.dataset.sub = 'select'; box.append(sel1);
+    // '2. 방식별 성능': 두 방식을 위아래로 늘어놓지 않고 버튼으로 하나씩 (스크롤 줄이기)
+    const mseg = mk('div', 'seg methodseg'); mseg.dataset.sub = 'method'; mseg.setAttribute('role', 'group'); mseg.setAttribute('aria-label', '예측 방식');
+    const cards = D.sections.map((s) => { const c = section(s); c.dataset.sub = 'method'; c.dataset.m = s.key; return c; });
+    const pickM = (k) => { P3.method = k; cards.forEach((c) => c.classList.toggle('mhide', c.dataset.m !== k)); mseg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.m === k ? 'true' : 'false')); };
+    D.sections.forEach((s) => { const b = mk('button', null, s.title + (s.key === 'direct' ? ' (기업 권장)' : '')); b.type = 'button'; b.dataset.m = s.key; b.onclick = () => pickM(s.key); mseg.append(b); });
+    box.append(mseg, ...cards); pickM(P3.method || 'direct');
+    extraCards(D).forEach((c) => box.append(c));
+    PG.applySub && PG.applySub('perf');
   };
 
   function section(s) {
@@ -112,15 +119,16 @@
   }
   // ---------- 발생시각 오차 · 조건별 정확도 · 기상 포함/미포함 ----------
   function extraCards(D) {
-    const wrap = mk('div', 'extragrid'), N = nameOf(D);
+    const wrap = mk('div', 'extragrid'), N = nameOf(D), out = [wrap];
+    wrap.dataset.sub = 'detail';
     // ③ 발생시각 오차
-    const a = mk('div', 'card'); a.append(mk('h2', null, '③ 예측시각과 실제 발생시각 오차'));
+    const a = mk('div', 'card'); a.append(mk('h2', null, '가. 예측시각과 실제 발생시각 오차'));
     const T = D.timing, t1 = mk('table', 'perf');
     row(t1, ['방식 · 모델', '사전 경보', '평균 선행', '시각 오차', '±15분 이내'], true);
     Object.entries(T.rows).forEach(([id, r]) => row(t1, [N[id] || id, r.events ? `${r.warned}/${r.events} (${fmt(r.warned_pct, 0)}%)` : '—', r.lead_min == null ? '—' : r.lead_min + '분 전', r.abs_err_min == null ? '—' : `평균 ${r.abs_err_min}분 (이르게 ${r.early_pct}%)`, r.within15_pct == null ? '—' : r.within15_pct + '%']));
     const w1 = mk('div', 'tscroll'); w1.append(t1); a.append(w1, mk('p', 'note', `시험기간 실제 피크 사건 ${T.events}건. ` + T.rule));
     // ④ 조건별 정확도
-    const b = mk('div', 'card'); b.append(mk('h2', null, '④ 조건별 예측 정확도 (MAE, kW)'));
+    const b = mk('div', 'card'); b.append(mk('h2', null, '나. 조건별 예측 정확도 (MAE, kW)'));
     const C = D.by_condition, t2 = mk('table', 'perf');
     row(t2, ['방식 · 모델', ...C.conditions], true);
     Object.entries(C.rows).forEach(([id, r]) => row(t2, [N[id] || id, ...C.conditions.map((c) => fmt(r[c], 3))]));
@@ -128,7 +136,7 @@
     wrap.append(a, b);
     // ⑤ 기상 포함 / 미포함
     if (D.weather) {
-      const w = mk('div', 'card wide'); w.append(mk('h2', null, '⑤ 기상(기온) 포함 / 미포함 비교'));
+      const w = mk('div', 'card wide'); w.append(mk('h2', null, '기상(기온) 포함 / 미포함 비교'));
       const t3 = mk('table', 'perf');
       row(t3, ['방식 · 모델', '검증 MAE 포함 / 미포함', '시험 MAE 포함 / 미포함', '맞힘 포함 / 미포함', '헛경보 포함 / 미포함', '재현율 포함 / 미포함'], true);
       D.weather.rows.forEach((r) => {
@@ -136,12 +144,13 @@
         if (r.val_w < r.val_nw) tr.classList.add('best');
       });
       const w3 = mk('div', 'tscroll'); w3.append(t3);
+      w.dataset.sub = 'weather';
       w.append(w3, mk('p', 'selbest small', D.weather.decision), mk('p', 'note', D.weather.note + ' 주황 줄 = 기상을 넣어 검증 MAE가 줄어든 모델.' + (D.thr.key !== 'recent30' ? ' (맞힘·헛경보·재현율은 최근 30일 기준에서만 정확히 비교됨)' : '')));
-      wrap.append(w);
+      out.push(w);
     }
     // ⑥ 기간별(일별) 예측 정확도
     if (D.by_day) {
-      const Y = D.by_day, d = mk('div', 'card wide'); d.append(mk('h2', null, '⑥ 기간별 예측 정확도 (시험기간 일별 MAE, kW)'));
+      const Y = D.by_day, d = mk('div', 'card wide'); d.append(mk('h2', null, '다. 기간별 예측 정확도 (시험기간 일별 MAE, kW)'));
       const t4 = mk('table', 'perf');
       row(t4, ['방식 · 모델', ...Y.days.map((x) => `${x.date.slice(5)}(${x.wd})`), '평일 평균', '주말·공휴일 평균'], true);
       Object.entries(Y.rows).forEach(([id, r]) => {
@@ -152,6 +161,6 @@
       d.append(w4, mk('p', 'note', Y.note));
       wrap.append(d);
     }
-    return wrap;
+    return out;
   }
 })();
