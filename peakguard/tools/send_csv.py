@@ -1,5 +1,9 @@
 """[11] CSV → API 붙여 보내기 — 새 전력 CSV 파일을 API 서버로 보내 DB에 추가
 
+연결 ─ 화면: — (명령줄에서 CSV 보내기, python run.py 11)
+       API : POST /api/upload 호출
+       DB  : —
+
     python run.py 11 --file data/new/생활지원로봇센터_1층_공용.csv
     python run.py 11 --file new.csv --dry-run              # 검사만 하고 저장하지 않음
     python run.py 11 --file new.csv --url http://서버주소:8000

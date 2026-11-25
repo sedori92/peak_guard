@@ -1,5 +1,9 @@
 """데이터 수집·전처리 — 기상청 ASOS 광주(156) 분자료 → 15분 집계 → DB(weather_15m)
 
+연결 ─ 화면: ② '기상요인 관계' 칸의 자료 · ③ ⑤ 기상 비교의 자료
+       API : POST /api/upload(기상 CSV) · POST /api/live/sync
+       DB  : weather_15m (쓰기)
+
 사용법
     python run.py 2                       # DB 구축 때 함께 적재
     python -m peakguard.collect.weather --weather-dir data/weather

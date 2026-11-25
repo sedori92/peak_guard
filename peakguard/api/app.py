@@ -1,5 +1,9 @@
 """[5] API 서버 — FastAPI 앱 (조회 API + 관리자 화면 + CSV 업로드 + 보고서)
 
+연결 ─ 화면: 세 화면 모두 (web/index.html 을 / 주소로 내보냄)
+       API : /, /api/health, /api/report + 아래 api/*.py 묶음
+       DB  : measurement·channel (상태 확인)
+
     python run.py 5                         # http://localhost:8000  (API 문서: /docs)
     uvicorn peakguard.api.app:app --port 8000
 

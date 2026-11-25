@@ -1,4 +1,8 @@
-"""사용패턴·피크 분석 (EDA, Exploratory Data Analysis 탐색적 데이터 분석)
+"""[분석] 사용패턴·피크 분석 그래프 (EDA, Exploratory Data Analysis 탐색적 데이터 분석)
+
+연결 ─ 화면: — (보고용 그래프 PNG, python run.py eda)
+       API : —
+       DB  : measurement·weather_15m·peak_threshold (읽기)
 
     python run.py eda
     → reports/eda/ 에 그래프 5개 + summary.txt

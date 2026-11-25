@@ -5,12 +5,11 @@
 
 ![프로젝트 구조도](docs/architecture.png)
 
-- 기술문서: **[docs/TECHNICAL.md](docs/TECHNICAL.md)** · 모델 선정 근거: **[docs/MODEL_SELECTION.md](docs/MODEL_SELECTION.md)** · 기업 시스템(MariaDB) 연계: **[docs/INTEGRATION.md](docs/INTEGRATION.md)**
-- 팀원별 담당 폴더: **[docs/TEAM.md](docs/TEAM.md)**
-- 깃허브 공동 작업 순서: **[docs/GITHUB_GUIDE.md](docs/GITHUB_GUIDE.md)**
+- 기술문서: **[docs/TECHNICAL.md](docs/TECHNICAL.md)** · 화면-API-DB 연결표: **[docs/CODE_MAP.md](docs/CODE_MAP.md)** · 모델 선정 근거: **[docs/MODEL_SELECTION.md](docs/MODEL_SELECTION.md)** · 설정값 비교: **[docs/TUNING.md](docs/TUNING.md)**
+- 시나리오 테스트: **[docs/TEST_SCENARIOS.md](docs/TEST_SCENARIOS.md)** · 에너지플래너 적용 가능성·개선 방향: **[docs/PLANNER_REVIEW.md](docs/PLANNER_REVIEW.md)** · 기업 시스템(MariaDB) 연계: **[docs/INTEGRATION.md](docs/INTEGRATION.md)**
+- 팀원별 담당 폴더: **[docs/TEAM.md](docs/TEAM.md)** · 깃허브 공동 작업 순서: **[docs/GITHUB_GUIDE.md](docs/GITHUB_GUIDE.md)**
 
 ## 1. 실행 — 번호만 입력하면 됩니다
-
 ```bash
 pip install -r requirements.txt
 # 데이터 넣기: data/raw/ 에 전력 CSV 8개, data/weather/ 에 ASOS 분자료 CSV (구글 드라이브 팀 폴더)
@@ -18,73 +17,102 @@ pip install -r requirements.txt
 python run.py 1        # 1. 환경설정 점검
 python run.py 2        # 2. 데이터베이스 구축 (SQLite peakguard.db, 약 15초)
 python run.py 3        # 3. 예측모델 학습·평가·저장 (LightGBM·XGBoost·RandomForest·Bi-LSTM × 2개 방식, 약 8분)
+                       #    --auto : 운영 재학습 — 마지막 실측 기준으로 시험 14일·검증 21일·나머지 학습 자동 구간
 python run.py 4        # 4. 예측모델별 평가 결과 표·그래프 → reports/eval/
 python run.py 5        # 5. API 서버 + 관리자 화면 → http://localhost:8000  (API 문서 /docs)
-python run.py 6        # 6. 화면: 서버 없이 열리는 시연용 HTML (--date 2026-10-28, 세 화면·8개 모델 포함)
-python run.py 7        # 7. 동작확인 (자동 시험 13개)
+python run.py 6        # 6. 화면: 서버 없이 열리는 시연용 HTML (세 화면·시험기간 14일·8개 모델 포함)
+python run.py 7        # 7. 동작확인 (자동 시험 27개 = 기능 16 + 관리자 시나리오 11)
 python run.py 8 -m "[파트] 내용"   # 8. 깃허브 반영(커밋)
 python run.py 9        # 9. 깃허브 푸시
 python run.py 10 --period week --date 2026-10-28   # 10. 주간·월간 보고서 텍스트
+python run.py 10x --period month --date 2026-10-15 # 10x. 최고관리자 피크 보고서 스프레드시트(.xlsx)
 python run.py 11 --file 새파일.csv                  # 11. CSV → API 업로드 (5번 서버 실행 중일 때)
 python run.py eda      # 사용패턴·피크 분석 그래프 → reports/eda/
+
+python -m peakguard.tools.tune           # 설정값(하이퍼파라미터) 비교 → models/tuning.json
+python -m peakguard.tools.model_report   # 선정 근거·설정값 문서 다시 쓰기 → docs/MODEL_SELECTION.md, docs/TUNING.md
+python -m peakguard.models.train --compare   # 기상 포함/미포함 비교 학습 → models/compare_weather.json
 ```
 
-## 2. 폴더 구조 (번호 = run.py 단계)
+## 2. 폴더 구조 — 화면 · API · DB 로 나뉜 모듈 (번호 = run.py 단계)
+
+화면(web/) → API(peakguard/api/) → 계산 모듈(models·evaluation·eda·reports·live) → DB(peakguard.db) 순서로 한 방향으로만 부릅니다.
+파일마다 맨 위 설명에 **"연결 ─ 화면 / API / DB"** 세 줄이 있고, 전체 표는 [docs/CODE_MAP.md](docs/CODE_MAP.md) 에 있습니다.
 
 ```
 peak_guard/
 ├─ run.py                       번호별 실행기
-├─ requirements.txt · .env.example
-├─ db/schema.sql                [2] DB 테이블 정의서
+├─ requirements.txt · .env.example (DB 주소·기업 DB·기상 API·메일 설정 예시)
+├─ db/schema.sql                [2] DB 테이블 정의서 (SQLite, MariaDB 로 옮길 때 기준)
 ├─ peakguard/
-│  ├─ config.py                 [1] 경로·DB 주소·기준값 (공통)
+│  ├─ config.py                 [1] 기간·피크 기준·위험 판정·기본 모델 등 기준값 (공통)
 │  ├─ setup_check.py            [1] 환경 점검
+│  │
+│  │  ── 수집·DB ──────────────────────────────────────────────
 │  ├─ collect/                  데이터 수집·전처리
-│  │   ├─ power_csv.py              전력 CSV 정제 규칙 (DB 적재·업로드 공통)
-│  │   ├─ weather.py                기상청 ASOS → 15분 집계
+│  │   ├─ power_csv.py              전력 CSV 정제 규칙 (DB 구축·파일 끌어다놓기·실시간 연결 공통)
+│  │   ├─ weather.py                기상청 ASOS → 15분 집계, CSV·API 증분 업데이트
 │  │   ├─ calendar_kr.py            주말·공휴일 달력
-│  │   └─ reviews.py                공개 앱 리뷰 수집 (DCX)
-│  ├─ database/                 [2] DB 구축
-│  │   ├─ connection.py             연결·기본 테이블
-│  │   ├─ tables_forecast.py        예측·평가·기상·업로드 테이블
-│  │   ├─ tables_ops.py             입주자 연락처·경보 발령 기록·실시간 예측 기록 (v0.2)
+│  │   └─ reviews.py                공개 앱 리뷰 수집 (화면 설계 근거, 예측과 무관)
+│  ├─ database/                 [2] DB 구축 (SQLAlchemy — .env 의 DATABASE_URL 로 다른 DB 전환)
+│  │   ├─ connection.py             연결·기본 표 (measurement·channel·meter·holiday)
+│  │   ├─ tables_forecast.py        기상·예측·평가 표 (weather_15m·st_*·peak_threshold)
+│  │   ├─ tables_ops.py             운영 표 (live_forecast·tenant_contact·alert_log·upload_log)
 │  │   └─ load_power.py             전력 CSV 적재
-│  ├─ eda/patterns.py           사용패턴·피크 분석
+│  │
+│  │  ── 계산 (화면이 보여 줄 숫자를 만드는 곳) ─────────────────────
 │  ├─ models/                   [3] 예측모델
-│  │   ├─ grid.py                   DB → 15분 격자, 피크 기준(P95)
+│  │   ├─ grid.py                   DB → 15분 격자, 음수 정제
+│  │   ├─ thresholds.py             피크 기준 5종 (최근 30일·당월·전월·7~9월·12~2월 P95)·96채널 합계 최대
 │  │   ├─ features.py               입력 특징
 │  │   ├─ baseline.py               기준모델 (전일 동일시각)
-│  │   ├─ lightgbm_model.py         LightGBM (+ SHAP)
-│  │   ├─ xgboost_model.py          XGBoost
-│  │   ├─ thresholds.py             피크 기준점 5종 (최근 30일·전월·당월·7~9월·12~2월 P95)
-│  │   ├─ random_forest_model.py    RandomForest
-│  │   ├─ bilstm_model.py           Bi-LSTM
-│  │   └─ train.py                  학습·예측·평가·저장 실행
-│  ├─ evaluation/               [4] 평가
-│  │   ├─ metrics.py                MAE·RMSE·MAPE·피크 감지
-│  │   └─ report.py                 평가 표·그래프
+│  │   ├─ lightgbm_model.py · xgboost_model.py · random_forest_model.py · bilstm_model.py
+│  │   └─ train.py                  학습·예측·평가·DB 저장 (--auto 자동 구간, --compare 기상 비교)
+│  ├─ evaluation/               [4] 평가 (③ 화면)
+│  │   ├─ metrics.py                MAE·RMSE·MAPE·피크 오분류표
+│  │   ├─ peak_by_threshold.py      피크 기준별 오분류표 다시 판정
+│  │   ├─ extra.py                  선정 결론·발생시각 오차·조건별·기간별·기상 비교
+│  │   └─ report.py                 보고용 표·그래프 (run.py 4)
+│  ├─ eda/                      분석 (② 화면·① 계측 상태)
+│  │   ├─ analysis.py               사용패턴 분석 7칸
+│  │   ├─ meter_status.py           계측 상태 (끊김·빠진 칸·음수·누적 감소·불일치·값 고정)
+│  │   └─ patterns.py               보고용 그래프 (run.py eda)
+│  ├─ reports/                  [10] 보고서 (② 화면)
+│  │   ├─ executive.py              최고관리자 보고서·스프레드시트
+│  │   ├─ influence.py              평소 대비 증가·실측 영향도
+│  │   └─ periodic.py               주간·월간 텍스트 보고서
+│  ├─ live/                     [실시간 연결] sync.py 빠진 기간 채우기 · predictor.py 최근 실측 기준 예측
+│  │
+│  │  ── API (화면과 계산 사이 창구, FastAPI REST/JSON) ──────────────
 │  ├─ api/                      [5] API 서버
-│  │   ├─ app.py                    서버·보고서·상태 확인
-│  │   ├─ dashboard.py              ① 예측 및 경보 — 시연 재생 (테스트 기간 아무 날)
+│  │   ├─ app.py                    서버 시작·화면 파일 내보내기·상태 확인
+│  │   ├─ dashboard.py              ① 예측 및 경보 — 재생·계측 상태
 │  │   ├─ live.py                   ① [실시간 연결] 버튼
-│  │   ├─ alerts.py                 ① 경보발령 선택 (연락처 관리·경보 발령)
-│  │   ├─ history.py                ② 최고관리자 보고서·배치도·영향요인
+│  │   ├─ upload.py                 ① [파일 끌어다놓기] · [11] CSV 업로드
+│  │   ├─ alerts.py                 ① 경보발령 선택 (연락처·경보 발령)
+│  │   ├─ history.py                ② 최고관리자 보고서·배치도·영향도·사용패턴
 │  │   ├─ performance.py            ③ 모델성능 및 오경보율 비교
-│  │   ├─ upload.py                 [11] CSV 업로드
-│  │   └─ common.py                 공통 도구
-│  ├─ live/                     [실시간 연결] sync.py 빠진 구간 채우기 · predictor.py 최근 실측 기준 예측
-│  ├─ reports/periodic.py       [10] 주간·월간 보고서
-│  ├─ tools/                    [6] export_static.py · [11] send_csv.py
-│  └─ dayahead/                 (부록) 하루 전 일 피크 예측
-├─ web/                         [6] 관리자 화면 (Front-end)
+│  │   └─ common.py                 공통 도구 (DB 조회)
+│  ├─ tools/                    [6] export_static.py 시연 파일 · [11] send_csv.py · tune.py 설정값 비교 · model_report.py 문서 생성
+│  └─ dayahead/                 (부록) 하루 전 일 피크 예측 — 기업 1차 답변 C3 로 이번 범위 제외, 화면·API 와 연결 없음
+│
+│  ── 화면 (Front-end) ────────────────────────────────────────
+├─ web/                         [6] 관리자 화면
 │  ├─ index.html                화면 배치 (탭 3개)
-│  └─ static/  common.js(공통) · screen1_predict.js · screen1_alerts.js · screen2_history.js · screen3_perf.js · app.js(화면 전환) · style.css
-├─ tests/test_smoke.py          [7] 동작확인
-├─ docs/                        구조도·팀 역할·깃허브 안내
+│  └─ static/
+│      ├─ common.js                 세 화면 공통 도구 (API 부르기·그리기)
+│      ├─ screen1_predict.js        ① 예측 및 경보 — 그래프·상태줄·계측 상태·[실시간 연결]
+│      ├─ screen1_alerts.js         ① 경보발령 선택 상자
+│      ├─ screen2_history.js        ② 최고관리자 보고서·배치도·영향도
+│      ├─ screen2_patterns.js       ② 사용패턴 분석 7칸·기상 데이터 검토
+│      ├─ screen3_perf.js           ③ 모델성능 및 오경보율 비교
+│      ├─ app.js                    탭 전환 · bg.js 배경 · style.css
+├─ tests/                       [7] test_smoke.py 기능 시험 · test_scenarios.py 관리자 시나리오 시험
+├─ docs/                        기술문서·연결표·모델 선정·설정값·시나리오·적용 가능성·연계·구조도
 └─ .github/                     PR 양식 · CODEOWNERS(담당자 지정)
 ```
 
-> 원본 데이터(`data/`), DB 파일, 학습된 모델(`models/`), 시연용 HTML, 비밀번호(`.env`)는 깃허브에 올리지 않습니다.
+> 원본 데이터(`data/`), DB 파일, 학습된 모델(`models/`), 시연용 HTML·스프레드시트(`reports/`), 비밀번호(`.env`)는 깃허브에 올리지 않습니다. 입주자 연락처는 `peakguard.db` 안에만 있습니다.
 
 ## 3. 다음 1시간 예측 (요구사항 FR-AI-001~004)
 
@@ -110,13 +138,15 @@ peak_guard/
 
 ### 화면 (web/) — 화면 설계 v0.2
 1. **예측 및 경보**: 왼쪽 위 방식·예측모델·재생 기준일 선택 / 오른쪽 위 재생 배너 + **[실시간 연결]** /
-   상태 띠 ① **현재 피크**(한전 방식 최대수요전력: 직전 12개월 7~9월·12~2월·당월 최대) ② **피크 기준 콤보박스**(최근 30일·전월·당월·7~9월·12~2월의 95번째 백분위수), ③ 판정 ④ 현재 수요전력 /
+   상태 띠 ① **96채널 합계 최대(분석용)**(직전 12개월 7~9월·12~2월·당월 최대, 공식 최대수요전력 아님) ② **피크 기준 콤보박스**(최근 30일·당월·전월·7~9월·12~2월의 95번째 백분위수) ③ 판정(정상·위험, 피크 기준 대비 %) ④ 현재 수요전력 /
+   그 아래 **계측 상태** 줄(채널별 끊김·빠진 칸·음수·누적 감소·불일치·값 고정, [점검 필요 채널 보기]) /
    상단 실측·예측·피크 기준선 (위·아래 그래프 모두 '앞 2시간 실측 + 오른쪽 1/3 다음 1시간 예측', 시간이 지나면 왼쪽으로 밀림) / 오른쪽 **경보발령 선택**(공용부분 최후 수단 → 호실 34개, 안내문구, 연락처 관리, 경보 발령) /
    하단 Top5 호실 예측선 / 오른쪽 **호실별 피크 예측 가능성**(막대 = 호실 직전 30일 P95 대비 %, 옆에 예측 kW)
-2. **피크이력 및 영향도 분석** (모두 실측): 최고관리자 보고서(일간·주간·월간·연간) — 피크 변동기록 | 피크 시각 **영향도 Top 10** | **평소 대비 증가 Top 10**
+2. **피크이력 및 영향도 분석** (모두 실측, 아래 사용패턴 분석 7칸과 기상 데이터 검토 포함): 최고관리자 보고서(일간·주간·월간·연간) — 피크 변동기록 | 피크 시각 **영향도 Top 10** | **평소 대비 증가 Top 10**
    (평소 = 같은 요일·시각 직전 4주 평균), [스프레드시트 보기·출력] / 고른 피크 시각의 층별 배치도 + **전체·채널별 영향도** 폭포 그래프
    (전체: 평소 건물 합계 + 채널별 증가 = 실측, 채널: 최근 4주 같은 시각 평균 + 요일·최근 1주·당일 차이 = 실측)
-3. **모델성능 및 오경보율 비교**: 맨 위 피크 기준 콤보박스(첫 화면과 연동, 기준마다 오분류표 다시 판정) / 위 '채널별 합산 후 예측'(기업 권장), 아래 '채널별 예측 후 합산' — 오차 표 + 오분류표 + 재현율 비교(경보 없음 줄 포함)
+3. **모델성능 및 오경보율 비교**: 맨 위 피크 기준 콤보박스(첫 화면과 연동)·데이터 정제 기록 / 최적 모델 선정 결론 / 위 '채널별 합산 후 예측'(기업 권장), 아래 '채널별 예측 후 합산' — 오차 표 + 오분류표 + 재현율 비교 /
+   ③ 예측시각·실제 발생시각 오차 ④ 조건별 정확도 ⑤ 기상 포함/미포함 비교 ⑥ 기간별(일별) 정확도
 - 왼쪽 위 **피크가드 로고를 누르면 밝은 화면 ↔ 어두운 화면** 전환 (브라우저에 기억)
 
 ### 서버 안에서만 쓰는 장부 (화면에는 안 보이는 부분)
@@ -151,13 +181,15 @@ peak_guard/
 | `GET /api/forecast?issued_at=2026-10-28 14:00:00&model=LightGBM` | 특정 발행 시각의 15분×4 예측 (전체 + 호실) |
 | `GET /api/eval` | 모델 성능 (검증·시험, 전체·채널, 선행시간별, 편향) + 피크 오분류표 |
 | `GET /api/report?period=week&date=2026-10-28` | 주간·월간 보고서 텍스트 |
-| `GET /api/report/peaks?period=day\|week\|month\|year&date=2026-10-28` | 최고관리자 보고서 미리보기 (피크 변동기록 + 기여도 Top10) |
+| `GET /api/report/peaks?period=day\|week\|month\|year&date=2026-10-28` | 최고관리자 보고서 미리보기 (피크 변동기록 + 영향도 Top10) |
 | `GET /api/report/xlsx?period=month&date=2026-10-28` | 같은 내용 스프레드시트(.xlsx) 내려받기 — `python run.py 10x` 로도 생성 |
 | `GET /api/snapshot?time=2026-10-29 14:30` | ② 그 시각 96개 채널 실측·비중 (배치도) |
 | `GET /api/rise?time=2026-10-29 14:30` | ② 피크 시각 평소 대비 증가 Top 10 (실측 − 같은 요일·시각 직전 4주 평균) |
 | `GET /api/influence?time=2026-10-29 14:30&series=TOTAL` | ② 전체·채널별 실측 영향도 (폭포 그래프, TOTAL 또는 M008-04) |
 | `GET /api/report/preview` · `GET /api/printer` | ② 스프레드시트 미리보기, 서버 컴퓨터 프린터 확인 |
-| `GET /api/performance` | ③ 두 방식 × 5개 모델 오차·오분류표·재현율 |
+| `GET /api/performance?thr=recent30` | ③ 두 방식 × 5개 모델 오차·오분류표·재현율 + 선정 결론·발생시각 오차·조건별·기간별·기상 비교·정제 기록 |
+| `GET /api/patterns?range=all&date=2026-11-02` | ② 사용패턴 분석 7칸 + 기상 데이터 검토 |
+| `GET /api/meter_status?date=2026-10-28` | ① 계측 상태 (날짜 없으면 최근 24시간) |
 | `POST /api/live/sync` · `POST /api/live/predict?model=LightGBM` | ① [실시간 연결]: 새 데이터 넣기 → 최근 실측 기준 예측 |
 | `GET/POST /api/contacts` · `PUT/DELETE /api/contacts/{id}` | ① 입주자 연락처 관리 |
 | `GET /api/alerts/template` · `POST /api/alerts` · `GET /api/alerts` | ① 기본 안내문구, 경보 발령, 발령 기록 |
@@ -166,17 +198,17 @@ peak_guard/
 
 ### 한계
 - 시연은 **과거 데이터 재생**(시험기간 아무 날)입니다. [실시간 연결]은 새 CSV나 기업 DB가 있어야 최신 시각으로 갑니다.
-- CSV 업로드 후 새 데이터에 대한 예측은 `run.py 3` 을 다시 실행해야 만들어집니다.
+- 새 자료를 넣으면 피크 기준·계측 상태·실시간 예측은 바로 바뀌지만, 모델 자체(학습·검증·시험 구간)는 고정입니다. 운영 중 재학습은 `python run.py 3 --auto`.
 - 호실 채널 ↔ 실제 호실명 대응표가 없어 "4층 04번"처럼 계량기·채널 번호로 표시합니다.
 - 기상은 이번 자료(7~11월) 검증에서 효과가 없어 예측 입력에 쓰지 않습니다(수집·업데이트·분석·비교는 유지). 겨울 자료가 쌓이면 재학습해 기상 효과를 다시 확인합니다.
-- 피크 기준(P95)은 상대 기준입니다. 계약전력 등 고정 기준은 기업 확인 후 추가해야 합니다.
+- 피크 기준(P95)은 상대 기준입니다. 요금(계약전력·요금적용전력) 관련은 기업 합의(1차 답변 C5)로 범위 밖입니다.
 - 인증·권한(FR-AD-001)은 아직 없습니다. 문자(SMS) 발송은 연결 자리만 있습니다(문자 서비스 계약 후 연결).
-- 2026-11-02 이후 기간으로 다시 학습하려면 그 기간 실측을 넣고 `run.py 3` 을 다시 실행합니다(겨울철 난방 패턴 반영).
+- 2026-11-02 이후 기간으로 다시 학습하려면 그 기간 실측을 넣고 `python run.py 3 --auto` 를 실행합니다(겨울철 난방 패턴 반영).
 - 앱 리뷰 수집(`collect/reviews.py`)은 개발 환경에서 인터넷 접속이 막혀 실행 확인을 하지 못했습니다.
 
 ---
 
-# 부록 A. 하루 전 일 피크 예측 (`train.py`)
+# 부록 A. 하루 전 일 피크 예측 (`train.py`) — 참고용 (기업 1차 답변 C3: 익일 예측은 이번 개발범위 제외)
 
 다음날 하루치 96칸(15분)을 전날 자정 기준으로 예측해 일 피크(kW)·피크 시각을 구합니다.
 `python -m peakguard.dayahead.train` 으로 실행하며 (코드: `peakguard/dayahead/`) 결과는 `model_run`, `peak_forecast`, `forecast_slot` 테이블에 저장됩니다.

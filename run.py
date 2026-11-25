@@ -3,7 +3,7 @@
     python run.py              # 단계 목록 보기
     python run.py 1            # 환경설정 점검
     python run.py 2            # DB 구축 (테이블 생성 + 전력 + 기상 적재)
-    python run.py 3            # 예측모델 학습·평가·저장  (--skip-lstm 로 Bi-LSTM 제외)
+    python run.py 3            # 예측모델 학습·평가·저장  (--skip-lstm 로 Bi-LSTM 제외, --auto 로 구간 자동 계산)
     python run.py 4            # 예측모델별 평가 표·그래프
     python run.py 5            # API 서버 + 관리자 화면 (http://localhost:8000)
     python run.py 6            # 화면: 시연용 HTML 한 파일 내보내기 (--date, 세 화면·8개 모델 포함)
@@ -25,7 +25,7 @@ import sys
 STEPS = {
     "1": ("환경설정 점검", "peakguard/setup_check.py"),
     "2": ("DB 구축", "db/schema.sql, peakguard/database/, peakguard/collect/"),
-    "3": ("예측모델 학습 (LightGBM·RandomForest·Bi-LSTM)", "peakguard/models/"),
+    "3": ("예측모델 학습 (LightGBM·XGBoost·RandomForest·Bi-LSTM × 2개 방식)", "peakguard/models/"),
     "4": ("예측모델별 평가 결과 표·그래프", "peakguard/evaluation/"),
     "5": ("API 서버 + 관리자 화면", "peakguard/api/, web/"),
     "6": ("화면: 시연용 HTML 내보내기", "peakguard/tools/export_static.py"),

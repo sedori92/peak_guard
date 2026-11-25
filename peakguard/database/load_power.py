@@ -1,5 +1,9 @@
 """[2] DB 구축 — 테이블 생성 + 전력 CSV 적재
 
+연결 ─ 화면: —
+       API : —
+       DB  : measurement·channel·meter (쓰기, python run.py 2)
+
     python run.py 2                 # 테이블 생성 + 전력 + 기상 적재 (권장)
     python -m peakguard.database.load_power --reset
 

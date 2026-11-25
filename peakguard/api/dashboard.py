@@ -1,5 +1,9 @@
 """[5] API — 첫 번째 화면 '예측 및 경보' (시연 재생)
 
+연결 ─ 화면: ① 예측 및 경보 — 재생 기준일·모델 콤보, 그래프, Top5, 가능성 막대, 계측 상태 줄 (screen1_predict.js)
+       API : GET /api/days · /api/replay · /api/channel · /api/forecast · /api/eval · /api/meter_status
+       DB  : st_forecast·st_eval·st_peak_eval·st_explain·measurement·weather_15m·peak_threshold (읽기)
+
     GET /api/days                         재생 기준일(시험기간 날짜)·방식·예측모델 목록
     GET /api/replay?date=&model=          하루치 화면 데이터: 건물 합계 실측·다음 1시간 예측·피크 기준선,
                                           호실 실측·예측, 호실 피크 기준(직전 30일 P95)

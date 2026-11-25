@@ -1,5 +1,9 @@
 """데이터 수집 — 주말·공휴일 달력 (데이터명세서 D03)
 
+연결 ─ 화면: — (예측 입력 '주말·공휴일')
+       API : —
+       DB  : holiday (쓰기)
+
     python -m peakguard.collect.calendar_kr --start 2026-06-29 --end 2026-12-31
     → data/calendar/calendar.csv
 

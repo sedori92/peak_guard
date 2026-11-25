@@ -1,5 +1,9 @@
 """[5] API — 세 번째 화면 '모델성능 및 오경보율 비교'
 
+연결 ─ 화면: ③ 모델성능 및 오경보율 비교 전체 (screen3_perf.js)
+       API : GET /api/performance?thr=
+       DB  : st_eval·st_peak_eval·st_forecast·st_meta (읽기)
+
   GET /api/performance?thr=recent30|prev_month|this_month|summer|winter
 
 피크 기준점(첫 화면 '피크 기준' 콤보박스와 같은 다섯 가지)에 따라 오분류표를 다시 판정합니다

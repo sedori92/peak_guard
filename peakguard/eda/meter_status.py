@@ -1,4 +1,8 @@
-"""[11] 계측 상태 — [실시간 연결]·파일 끌어다놓기로 들어온 자료만으로 채널별 이상을 찾음 (기업 API 불필요)
+"""[분석] 계측 상태 — [실시간 연결]·파일 끌어다놓기로 들어온 자료만으로 채널별 이상을 찾음 (기업 API 불필요)
+
+연결 ─ 화면: ① 상태줄 아래 '계측 상태' 줄과 '점검 필요 채널 보기' 창 (screen1_predict.js S.meter)
+       API : GET /api/meter_status
+       DB  : measurement (읽기)
 
   GET /api/meter_status?date=YYYY-MM-DD   그날 00:00 ~ 23:45 (마지막 실측이 그 안이면 거기까지)
   GET /api/meter_status                   가장 최근 실측까지 24시간 (실시간 연결 때)

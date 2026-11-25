@@ -1,5 +1,9 @@
 """[2] DB 구축 — 연결과 기본 테이블 정의 (SQLAlchemy)
 
+연결 ─ 화면: —
+       API : —
+       DB  : DB 연결 + measurement·channel·meter·holiday 등 기본 표 정의
+
 - 기본: 로컬 SQLite 파일(peakguard.db)
 - .env 에 DATABASE_URL 이 있으면 그 DB(예: PostgreSQL)에 연결
 테이블 구조는 db/schema.sql 과 같습니다. 예측·기상 테이블은 tables_forecast.py 에 있습니다.

@@ -192,3 +192,14 @@ def test_live_connect():
     for m in ("LightGBM", "LGBM_SUM"):
         r = client.post("/api/live/predict", params={"model": m}).json()
         assert len(r["pred"]) == 4 and len(r["rooms_pred"]) == 34 and r["time"] == s["after_last"]
+
+
+def test_auto_split_matches_fixed_periods():
+    """운영 재학습 --auto: 자료가 있는 날 기준 자동 구간이 지금 자료에서는 고정 구간과 거의 같아야 함 (수집 중단일 제외)."""
+    from peakguard.api.common import engine
+    from peakguard.live.predictor import grid
+    from peakguard.models.train import auto_split
+    g = grid(engine)
+    tr, va_a, va_b, te_a, te_b = auto_split(g.times, g.y[0])
+    assert te_a.startswith("2026-10-20") and te_b.startswith("2026-11-02")
+    assert va_a < va_b < te_a and va_b.startswith("2026-10-06")

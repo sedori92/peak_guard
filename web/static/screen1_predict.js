@@ -2,11 +2,13 @@
 //   왼쪽 위 콤보버튼 : 방식(채널별 예측 후 합산 / 채널별 합산 후 예측) · 예측모델(LightGBM·XGBoost·Random Forest·Bi-LSTM) · 재생 기준일
 //   그 오른쪽        : 합산 수요전력 구성 (호실 34개 / 공용 62개)                        (drawShare)
 //   오른쪽 위 배너   : 재생 중 시각 · 재생/일시정지 · 속도 · [실시간 연결] (누르면 재생 버튼 비활성화, 실시간 표시)
-//   상태 띠          : 판정 · 안내 | 가운데 현재 수요전력 | 피크 기준 콤보박스(최근 30일·전월·당월·7~9월·12~2월 P95)
+//   상태 띠          : 96채널 합계 최대(분석용) → 피크 기준 콤보박스(최근 30일·당월·전월·7~9월·12~2월 P95) → 판정(정상·위험) → 현재 수요전력
+//   그 아래 '계측 상태': 채널별 끊김·빠진 칸·음수·누적 감소·불일치·값 고정 (S.meter → /api/meter_status, DB measurement)
 //   상단 변동선      : 실측 + 다음 1시간 예측 + 피크 기준선  (drawChart)  ┐ 두 그래프 모두 0시~24시,
 //   하단 변동선      : 점검 우선 Top 5 호실 추이와 예측       (drawTop5)   ┘ 같은 가로 길이로 맞춤
 //   오른쪽 아래      : 호실별 피크 예측 가능성 (막대 = 그 호실 직전 30일 P95 대비 %, 옆에 예측 kW) (drawPossibility)
-//   서버 자료: /api/days(목록), /api/replay(하루치 재생), /api/live/sync·/api/live/predict(실시간 연결)
+//   서버 자료: /api/days(목록), /api/replay(하루치 재생), /api/meter_status(계측 상태), /api/live/sync·/api/live/predict(실시간 연결), /api/upload(파일 끌어다놓기)
+//   DB 표   : st_forecast·st_eval(재생 예측·성능) · measurement(실측) · live_forecast(실시간 예측 기록)
 (() => {
   const PG = window.PG, $ = PG.$, el = PG.el, fmt = PG.fmt, css = PG.css, tm = PG.tm, addMin = PG.addMin;
   const QS = new URLSearchParams(location.search);

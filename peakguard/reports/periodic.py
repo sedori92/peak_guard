@@ -1,5 +1,9 @@
 """[10] 보고서 — 주간·월간 사용량·피크·예측 정확도 보고서를 텍스트로 출력
 
+연결 ─ 화면: — (주간·월간 텍스트 보고서, python run.py 10)
+       API : GET /api/report
+       DB  : measurement·st_forecast·peak_threshold (읽기)
+
     python run.py 10 --period week  --date 2026-10-28    # 그 날이 속한 주(월~일)
     python run.py 10 --period month --date 2026-10-15    # 그 날이 속한 달
     GET /api/report?period=week&date=2026-10-28           # 같은 내용을 API 로

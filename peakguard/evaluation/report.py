@@ -1,5 +1,9 @@
 """[4] 예측모델별 평가 결과 — 표(CSV·텍스트)와 그래프(PNG)
 
+연결 ─ 화면: — (보고용 표·그래프, python run.py 4)
+       API : —
+       DB  : st_eval·st_peak_eval·st_forecast·st_meta (읽기)
+
     python run.py 4
     → reports/eval/ 에 아래 파일 생성
        metrics_total.csv / metrics_channel.csv / peak_detection.csv   (표)

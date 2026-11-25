@@ -1,5 +1,9 @@
 """[10] 보고서 — 최고관리자 보고용 피크 변동기록 + 영향도 Top10 (스프레드시트)
 
+연결 ─ 화면: ② 위 '최고관리자 보고서' 3표와 스프레드시트 보기·내려받기·출력
+       API : GET /api/report/peaks·xlsx·preview
+       DB  : measurement·channel·peak_threshold (읽기)
+
     python run.py 10x --period month --date 2026-10-15       # reports/피크보고서_month_2026-10-01.xlsx
     GET /api/report/peaks?period=day|week|month|year&date=    # 화면 미리보기(JSON)
     GET /api/report/xlsx?period=...&date=...                  # 스프레드시트 내려받기

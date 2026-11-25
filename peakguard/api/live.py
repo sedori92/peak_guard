@@ -1,5 +1,9 @@
 """[5] API — 화면 '예측 및 경보' 오른쪽 위 [실시간 연결] 버튼
 
+연결 ─ 화면: ① 오른쪽 위 [실시간 연결] 버튼 (screen1_predict.js S.goLive)
+       API : GET /api/live/status · POST /api/live/sync · POST /api/live/predict
+       DB  : measurement·weather_15m (쓰기), live_forecast (쓰기)
+
   POST /api/live/sync                 빠진 구간 채우기 (새 데이터 폴더·기업 DB → 측정값 장부, 중복 없이)
   POST /api/live/predict?model=       가장 최근 실측 시각 기준 다음 1시간 예측 (방식·모델 조합)
   GET  /api/live/status               마지막 실측 시각, 오늘까지 빠진 15분 칸 수

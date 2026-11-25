@@ -1,4 +1,8 @@
-"""[10] 두 번째 화면 아래 '사용패턴 분석' — 실측만 사용 (기업 과제 원문 목표 1, 세부 2·4·5)
+"""[분석] 두 번째 화면 아래 '사용패턴 분석' — 실측만 사용 (기업 과제 원문 목표 1, 세부 2·4·5)
+
+연결 ─ 화면: ② 아래 '사용패턴 분석' 7칸 (screen2_patterns.js)
+       API : GET /api/patterns
+       DB  : measurement·weather_15m (읽기)
 
   GET /api/patterns?range=all|90d|30d&date=YYYY-MM-DD
 

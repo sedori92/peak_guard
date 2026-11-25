@@ -1,5 +1,9 @@
 """[3-보조] 하이퍼파라미터(hyperparameter, 모델 설정값) 비교 — 검증기간만 사용
 
+연결 ─ 화면: — (설정값 비교, 결과는 docs/TUNING.md)
+       API : —
+       DB  : measurement (읽기), models/tuning.json (쓰기)
+
     python -m peakguard.tools.tune            # 트리 3종 + Bi-LSTM (CPU 2코어 약 15분)
     python -m peakguard.tools.tune --skip-lstm
     python -m peakguard.tools.tune --keep-lstm   # 트리만 다시, Bi-LSTM 은 이전 결과 유지

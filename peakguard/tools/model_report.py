@@ -1,5 +1,9 @@
 """[4] 최적 모델 선정 근거 문서 만들기 — docs/MODEL_SELECTION.md
 
+연결 ─ 화면: — (③ 과 같은 계산으로 문서 작성)
+       API : /api/performance 와 같은 함수
+       DB  : docs/MODEL_SELECTION.md · docs/TUNING.md (쓰기)
+
     python -m peakguard.tools.model_report      (학습 run.py 3 이 끝난 뒤)
 
 세 번째 화면과 같은 계산(/api/performance, 피크 기준 = 최근 30일 95번째 백분위수)으로 표와 결론을 씁니다.

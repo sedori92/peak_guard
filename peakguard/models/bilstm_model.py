@@ -1,5 +1,9 @@
 """[3] 예측모델 — Bi-LSTM(Bidirectional Long Short-Term Memory, 양방향 장단기 기억 신경망)
 
+연결 ─ 화면: ① 예측모델 콤보 'Bi-LSTM' (기본값), ③ Bi-LSTM 줄
+       API : —
+       DB  : — (models/st_BiLSTM.pt 파일)
+
   입력: 최근 6시간(24칸)의 [수요전력, 현재전력, 시각 sin·cos, 주말·공휴일] 순서열
        + 예측 대상 4구간의 전일·전주 같은 시각 값, 요일, 시각
   출력: 다음 15·30·45·60분 수요전력 4개

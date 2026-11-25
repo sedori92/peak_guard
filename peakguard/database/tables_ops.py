@@ -1,5 +1,9 @@
 """[2] DB 구축 — 운영용 표 (화면 '예측 및 경보'의 실시간 연결·경보발령에서 씀)
 
+연결 ─ 화면: ① 실시간 연결·경보발령
+       API : —
+       DB  : live_forecast·tenant_contact·alert_log·upload_log 정의
+
 여기 표들은 모델을 다시 학습해도 지워지지 않습니다 (입주자 연락처·발령 기록 보존).
 입주자 연락처는 개인정보이므로 DB 파일(peakguard.db)에만 저장하고 깃허브에는 올리지 않습니다(.gitignore).
 

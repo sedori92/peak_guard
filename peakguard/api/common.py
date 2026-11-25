@@ -1,4 +1,9 @@
-"""[5] API 서버 — 공통 도구 (DB 조회, 실행 정보, 값 정리)"""
+"""[5] API 서버 — 공통 도구 (DB 조회, 실행 정보, 값 정리)
+
+연결 ─ 화면: — (API 파일들이 함께 쓰는 도구)
+       API : — 
+       DB  : 모든 표 읽기(q), st_meta(info)
+"""
 from __future__ import annotations
 
 import json

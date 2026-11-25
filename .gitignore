@@ -16,3 +16,6 @@ reports/eval/
 reports/eda/
 reports/report_*.txt
 reports/*.xlsx
+
+# 작업 중 화면 캡처는 저장소 맨 위에 두지 않음
+/*.png

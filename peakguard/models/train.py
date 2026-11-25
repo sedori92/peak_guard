@@ -1,7 +1,12 @@
 """[3] 예측모델 — 학습·예측·평가·DB 저장을 한 번에 실행
 
+연결 ─ 화면: ①·③ 에 보이는 모든 예측값·성능 숫자를 만듦 (python run.py 3)
+       API : —
+       DB  : st_forecast·st_eval·st_peak_eval·st_channel_eval·st_explain·st_meta·peak_threshold (새로 씀)
+
     python run.py 3                  # 전체 (CPU 2코어 약 5분)
     python run.py 3 --skip-lstm      # Bi-LSTM 제외
+    python run.py 3 --auto           # 운영 재학습: 마지막 실측 기준으로 학습·검증·시험 구간을 자동으로 나눔
 
 발행 시각 t(15분마다)에 그때까지 알 수 있는 값만으로 t+15·30·45·60분 수요전력(kW)을 예측합니다.
 
@@ -48,11 +53,32 @@ def main() -> None:
     ap.add_argument("--skip-lstm", action="store_true")
     ap.add_argument("--compare", action="store_true",
                     help="기상 사용을 config.USE_WEATHER 와 반대로 바꿔 학습하고 성능만 models/compare_weather.json 에 저장 (DB·모델 파일은 그대로)")
+    ap.add_argument("--auto", action="store_true",
+                    help="학습·검증·시험 구간을 마지막 실측 기준으로 자동 계산 (시험 AUTO_TEST_DAYS일, 검증 AUTO_VAL_DAYS일, 나머지 학습)")
     a = ap.parse_args()
-    run(a.skip_lstm, compare=a.compare)
+    run(a.skip_lstm, compare=a.compare, auto=a.auto)
 
 
-def run(skip_lstm: bool = False, compare: bool = False) -> None:
+def auto_split(times: pd.DatetimeIndex, total: np.ndarray) -> tuple[str, str, str, str, str]:
+    """운영 재학습용 구간: 마지막 실측에서 거꾸로 '자료가 있는 날'을 세어
+         시험 = 마지막 AUTO_TEST_DAYS일, 검증 = 그 앞 AUTO_VAL_DAYS일, 학습 = 그 앞 전부.
+       수집이 멈춘 날(예: 10-06~10-20 통신회선 교체)은 날짜 수에 넣지 않습니다.
+       (TRAIN_END, VAL_START, VAL_END, TEST_START, TEST_END) 를 config 와 같은 글자 형식으로 돌려줌."""
+    from ..config import AUTO_TEST_DAYS, AUTO_VAL_DAYS
+    have = pd.Series(~np.isnan(total), index=times)
+    days = have.groupby(times.normalize()).sum()
+    days = days[days >= 8].index                                          # 2시간 이상 자료가 있는 날
+    if len(days) < AUTO_TEST_DAYS + AUTO_VAL_DAYS + 14:
+        raise SystemExit(f"자료가 있는 날이 {len(days)}일뿐이라 자동 구간(시험 {AUTO_TEST_DAYS}·검증 {AUTO_VAL_DAYS}·학습 14일 이상)을 만들 수 없습니다")
+    last = times[have.to_numpy()].max() - pd.Timedelta(hours=1)          # 마지막 발행 = 정답 1시간이 다 있는 시각
+    te_day, va_day = days[-AUTO_TEST_DAYS], days[-(AUTO_TEST_DAYS + AUTO_VAL_DAYS)]
+    te_a = times[have.to_numpy() & (times >= te_day)].min()               # 시험 첫날의 첫 실측
+    va_b = times[have.to_numpy() & (times < te_day)].max() - pd.Timedelta(hours=1)
+    f = lambda x: f"{x:%Y-%m-%d %H:%M}"   # noqa: E731
+    return f(va_day), f(va_day), f(va_b), f(te_a), f(last)
+
+
+def run(skip_lstm: bool = False, compare: bool = False, auto: bool = False) -> None:
     """compare=True: 기상 포함/미포함 비교 실행 — 성능 요약만 JSON 으로 남기고 DB·모델 파일은 건드리지 않음."""
     from ..config import USE_WEATHER
     t_start = time.time()
@@ -73,7 +99,11 @@ def run(skip_lstm: bool = False, compare: bool = False) -> None:
           f"예측 입력 기상 {'포함' if use_w else '미포함'}{' (비교 실행)' if compare else ''}")
     T, S = len(g.times), len(g.series)
     pos = lambda ts: int(np.searchsorted(g.times, pd.Timestamp(ts)))   # noqa: E731
-    tr_end, va_a, va_b, te_a, te_b = pos(TRAIN_END), pos(VAL_START), pos(VAL_END), pos(TEST_START), pos(TEST_END)
+    bounds = (TRAIN_END, VAL_START, VAL_END, TEST_START, TEST_END)      # 기본: config 고정 구간 (발표·산출물 근거)
+    if auto:
+        bounds = auto_split(g.times, g.y[0])
+        print(f"   구간 자동 계산(--auto): 학습 ~{bounds[0]} · 검증 {bounds[1]}~{bounds[2]} · 시험 {bounds[3]}~{bounds[4]}")
+    tr_end, va_a, va_b, te_a, te_b = (pos(b) for b in bounds)
     iss = np.arange(WEEK, T - 1)
     split = {"train": iss[iss + H < tr_end],                         # 정답(1시간 뒤)까지 학습기간 안
              "val": iss[(iss >= va_a) & (iss + H <= va_b)],
@@ -238,7 +268,7 @@ def run(skip_lstm: bool = False, compare: bool = False) -> None:
             "importance": [[k, round(float(v), 3)] for k, v in imp.head(10).items()],
             "rooms": g.rooms_all, "inactive": sorted(g.inactive), "models": models,
             "scale_total": float(scale[0]), "prep": {**g.prep, "excluded_train_cells": excluded_train},
-            "weather": use_w, "alert_ratio": __import__("peakguard.config", fromlist=["ALERT_RATIO"]).ALERT_RATIO}
+            "weather": use_w, "auto_split": auto, "alert_ratio": __import__("peakguard.config", fromlist=["ALERT_RATIO"]).ALERT_RATIO}
     with engine.begin() as con:
         con.execute(st_meta.insert(), [{"key": "info", "value": json.dumps(info, ensure_ascii=False)}])
     print(f"완료: 예측 {len(fc):,}행 저장, 총 {time.time() - t_start:.0f}초")

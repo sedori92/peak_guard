@@ -1,5 +1,9 @@
 """[3] 예측모델 — RandomForest
 
+연결 ─ 화면: ① 예측모델 콤보 'Random Forest', ③ Random Forest 줄
+       API : —
+       DB  : — (models/st_RandomForest.joblib 파일)
+
   - LightGBM 과 같은 특징 사용. 결측은 -1 로 채움
   - 채널 공동 모델은 학습 행이 200만 개가 넘어 40만 개를 표본 추출해 학습 (속도·용량)
 """

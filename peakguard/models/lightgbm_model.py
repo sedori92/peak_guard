@@ -1,5 +1,9 @@
 """[3] 예측모델 — LightGBM
 
+연결 ─ 화면: ① 예측모델 콤보 'LightGBM', ③ LightGBM 줄
+       API : —
+       DB  : — (models/st_LightGBM.joblib 파일)
+
   - 전체 합산 모델 1개 + 채널 공동 모델 1개 (선행 구간 h 를 특징으로 넣어 4구간을 한 모델로 예측)
   - explain(): 1시간 뒤 예측의 SHAP 기여도(kW) — 화면 '영향요인' 탭에 사용
 하이퍼파라미터를 바꿔 실험할 때는 PARAMS 만 수정하세요.

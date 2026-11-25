@@ -1,5 +1,9 @@
 """[4] 세 번째 화면 추가 평가 — 시험기간 저장 예측(st_forecast)과 실측으로 계산
 
+연결 ─ 화면: ③ 선정 결론 + ③ 발생시각 오차 · ④ 조건별 · ⑤ 기상 비교 · ⑥ 기간별 표, ② 기상 데이터 검토 상자
+       API : GET /api/performance · /api/patterns(weather_review)
+       DB  : st_forecast·st_eval·weather_15m (읽기)
+
   timing(thr)   예측시각과 실제 발생시각의 오차 (기업 1차 답변 D2)
                   사건 = 실측 건물 합계가 피크 기준 이상으로 올라간 연속 구간, 시작 시각 T
                   사전 경보 = T 1시간 전~15분 전에 낸 예측 중 '위험'(기준 이상)이 하나라도 있으면

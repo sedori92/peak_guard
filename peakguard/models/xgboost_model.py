@@ -1,5 +1,9 @@
 """[3] 예측모델 — XGBoost (eXtreme Gradient Boosting)
 
+연결 ─ 화면: ① 예측모델 콤보 'XGBoost', ③ XGBoost 줄
+       API : —
+       DB  : — (models/st_XGBoost.joblib 파일)
+
 화면 '예측모델 선택' 콤보버튼의 'XGBoost' 항목입니다.
   - LightGBM 과 같은 계열(나무를 하나씩 더해 가며 앞 나무의 오차를 고치는 방식)
   - LightGBM·RandomForest 와 똑같은 입력 특징(features.py)과 같은 학습기간을 씁니다.

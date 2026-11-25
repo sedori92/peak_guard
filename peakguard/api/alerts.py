@@ -1,5 +1,9 @@
 """[5] API — 화면 '예측 및 경보' > '경보발령 선택' 상자 뒤에서 일하는 부분
 
+연결 ─ 화면: ① 오른쪽 '경보발령 선택' 상자 (screen1_alerts.js)
+       API : GET·POST /api/contacts · GET /api/alerts/template · GET·POST /api/alerts
+       DB  : tenant_contact·alert_log (읽기·쓰기, 개인정보 — 깃허브·시연 파일 제외)
+
   GET    /api/contacts                 입주자 연락처 목록 (호실별)
   POST   /api/contacts                 연락처 추가   {channel_id, name, email, phone, memo}
   PUT    /api/contacts/{contact_id}    연락처 수정

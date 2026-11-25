@@ -1,5 +1,9 @@
 """데이터 수집·전처리 — 기업 제공 전력 CSV 읽기와 정제
 
+연결 ─ 화면: — (DB 구축·파일 끌어다놓기·실시간 연결이 함께 쓰는 정제 규칙)
+       API : POST /api/upload 가 사용
+       DB  : measurement (쓰기)
+
 DB 적재(database/load_power.py)와 CSV 업로드 API(api/upload.py)가 같은 규칙을 쓰도록 여기 모아 둡니다.
 
 전처리 규칙

@@ -1,5 +1,9 @@
 """[11] CSV → API 붙여 보내기 — 새 전력 CSV 를 업로드해 DB에 추가
 
+연결 ─ 화면: ① [실시간 연결] > [파일 끌어다놓기] 창
+       API : POST /api/upload
+       DB  : measurement·weather_15m·upload_log (쓰기)
+
     POST /api/upload   (form-data: file=<CSV>, dry_run=true|false)
 
 - 원본 CSV 형식(전력량계 ID, 채널 번호, 측정 시간, 현재 전력, 누적 사용량, 수요 전력) 그대로 받습니다.

@@ -1,4 +1,9 @@
-"""[2] DB 구축 — 기상·단기 예측·평가 테이블 정의 (db/schema.sql 8~14번과 동일)"""
+"""[2] DB 구축 — 기상·단기 예측·평가 테이블 정의 (db/schema.sql 8~14번과 동일)
+
+연결 ─ 화면: ③·① 에 쓰이는 예측·평가 결과 표 정의
+       API : —
+       DB  : weather_15m·st_forecast·st_eval·st_peak_eval·st_channel_eval·st_explain·st_meta·peak_threshold
+"""
 from __future__ import annotations
 
 from sqlalchemy import (Column, DateTime, Float, Integer, MetaData, PrimaryKeyConstraint, String, Table,

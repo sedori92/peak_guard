@@ -1,5 +1,9 @@
 """[5] API — 두 번째 화면 '피크이력 및 영향도 분석'
 
+연결 ─ 화면: ② 피크이력 및 영향도 분석 전체 (screen2_history.js, screen2_patterns.js)
+       API : GET /api/report/peaks·xlsx·preview · /api/printer · /api/snapshot · /api/rise · /api/influence · /api/patterns
+       DB  : measurement·channel·peak_threshold·weather_15m (읽기)
+
   GET /api/report/peaks?period=day|week|month|year&date=   상단 '최고관리자 보고서' (실측만, 피크 변동기록 + 기여도 Top 10)
   GET /api/report/xlsx?period=&date=                       같은 내용 스프레드시트(.xlsx) 내려받기
   GET /api/snapshot?time=YYYY-MM-DD HH:MM                  하단 '층별 호실 배치도' — 그 시각 채널별 실측과 비중

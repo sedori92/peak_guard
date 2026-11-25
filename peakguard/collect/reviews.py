@@ -1,5 +1,9 @@
 """데이터 수집 — 고객 텍스트(공개 앱 리뷰) 수집과 전처리 (데이터명세서 D07, DCX 분석용)
 
+연결 ─ 화면: — (화면 설계 근거용 고객 리뷰 분석, 예측과 무관)
+       API : —
+       DB  : — (data/reviews/ CSV)
+
     pip install google-play-scraper
     python -m peakguard.collect.reviews --count 200
     → data/reviews/reviews_raw.csv, reviews_clean.csv
