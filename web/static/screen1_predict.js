@@ -177,7 +177,7 @@
   };
   function drawChart(f) {
     const svg = $('#chart'); svg.replaceChildren();
-    const H = 300, ml = AX.L, mt = AX.T, mb = AX.B;
+    const H = 205, ml = AX.L, mt = AX.T, mb = AX.B;   // 1440×900 한 화면에 들어가도록 (#chart 높이와 같게)
     const { W, x: xs, X0 } = S.xAxis(svg, H, tm(f.t)), mr = AX.R;
     const ys = (v) => mt + (1 - v / 36) * (H - mt - mb);
     for (let v = 0; v <= 35; v += 5) { el('line', { x1: ml, x2: W - mr, y1: ys(v), y2: ys(v), stroke: css('--grid') }, svg); const t = el('text', { x: ml - 8, y: ys(v) + 4, 'text-anchor': 'end', 'font-size': 11, fill: css('--muted') }, svg); t.textContent = v; }
@@ -203,7 +203,7 @@
   // ---------- 하단 변동선: 점검 우선 Top 5 호실 추이 ----------
   function drawTop5(f, s) {
     const svg = $('#t5chart'); svg.replaceChildren();
-    const H2 = 280, L = AX.L, R = AX.R, T = AX.T, B = AX.B;
+    const H2 = 195, L = AX.L, R = AX.R, T = AX.T, B = AX.B;   // #t5chart 높이와 같게
     const { W: W2, x, X0 } = S.xAxis(svg, H2, tm(f.t));
     const top5 = S.topRooms(f).map((r) => r[0]), now = tm(f.t), pk = tm(s.at), hist = S.history().filter((h) => tm(h.t) >= X0);
     // 호실별 다음 1시간 예측 4점 (15·30·45·60분) — 상단 건물 그래프와 같은 모양
@@ -245,7 +245,7 @@
   };
   function drawPossibility(f, s) {
     // 순서·막대 = 예측 kW (큰 순, 왼쪽 Top 5와 같은 기준). % = 그 호실 평소(직전 30일 P95) 대비 — 참고 숫자
-    const rows = S.possibility(f, s).sort((a, b2) => b2.p - a.p).slice(0, 12);
+    const rows = S.possibility(f, s).sort((a, b2) => b2.p - a.p).slice(0, 8);
     const box = $('#pbars'); box.replaceChildren();
     const mx = Math.max(0.1, ...rows.map((r) => r.p));
     rows.forEach((r) => {
@@ -321,6 +321,7 @@
       PG.resetAlerts && PG.resetAlerts();
       if (!quiet || sy.inserted) S.meter();
       S.render();
+      if (!quiet) PG.refit && PG.refit();
     } catch (e) { bar.hidden = false; bar.textContent = '실시간 연결 실패: ' + e.message; liveUI(!!S.live); }
   };
   // [실시간 연결] 버튼 → 빠진 자료가 있으면 먼저 물어봄

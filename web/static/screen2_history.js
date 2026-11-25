@@ -56,7 +56,8 @@
       tr.onclick = () => pick(x.peak_time); tr.onkeydown = (e) => { if (e.key === 'Enter') pick(x.peak_time); };
     });
     H2.row = row;
-    pick(sm.peak_time);
+    await pick(sm.peak_time);
+    PG.refit && PG.refit();
   }
 
   // ---------- [스프레드시트 보기·출력]: 내려받을 .xlsx 를 화면에 시트별로 보여 주고 내려받기·출력 ----------

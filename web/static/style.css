@@ -441,3 +441,26 @@ nav.subtabs a[aria-current="page"]{background:var(--ink);color:var(--panel)}
 .perfsec.mhide{display:none!important}
 .methodseg{margin:0 0 12px}
 .replay .btn-live.busy{border:1.5px dashed var(--muted)!important}
+
+/* ===== 한 화면 맞춤 (1440×900): 첫 화면 그래프 높이 줄임 — JS 그리기 높이(H)와 같게 ===== */
+#chart{height:230px!important}
+#t5chart{height:220px!important}
+.kcard{min-height:128px;padding:14px 18px}
+.kcard .v{font-size:36px;margin-top:2px}
+.s1bar{margin:10px 0}
+.alist{max-height:200px}
+.kcard{min-height:112px;padding:12px 18px;gap:4px}
+.kcard .v{font-size:34px}
+#s-perf table.perf th,#s-perf table.perf td{padding:5px 8px}
+#s-perf .tscroll{max-height:none}
+#s-history .pcell .tscroll{max-height:none}
+.wrap{gap:12px}
+#chart{height:205px!important}
+#t5chart{height:195px!important}
+.s1bar{padding:9px 14px}
+.alist{max-height:165px}
+.alertbox{gap:6px}
+header.s1head nav.tabs a,header.s1head .site b,header.s1head .site small,header.s1head .bname{white-space:nowrap}
+header.s1head{gap:14px}
+header.s1head .replay{gap:8px}
+body{padding-block:12px 8px}

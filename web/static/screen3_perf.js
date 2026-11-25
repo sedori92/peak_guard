@@ -31,7 +31,7 @@
       `짧은 끊김(1시간 이내) ${pr.short_interpolated_cells.toLocaleString()}칸은 앞뒤 값으로 보간, 긴 결측 ${pr.long_gap_cells.toLocaleString()}칸은 보간하지 않고 학습에서 제외(학습기간 해당 ${pr.excluded_train_cells.toLocaleString()}칸). ` +
       `절댓값·0으로 바꾸지 않음. 성능 평가는 실측이 있는 칸만 사용.` : '';
     const box = $('#perfsections'); box.replaceChildren();
-    // 하위 메뉴(app.js): 1. 선정 결론 = select · 2. 방식별 성능 = method · 3. 정확도 상세 = detail · 4. 기상 비교 = weather
+    // 하위 메뉴(app.js): 1. 선정 결론 = select · 2. 방식별 성능 = method · 3. 발생시각·조건별 = detail · 4. 기간별(일별) = daily · 5. 기상 비교 = weather
     const sel1 = selectionCard(D); sel1.dataset.sub = 'select'; box.append(sel1);
     // '2. 방식별 성능': 두 방식을 위아래로 늘어놓지 않고 버튼으로 하나씩 (스크롤 줄이기)
     const mseg = mk('div', 'seg methodseg'); mseg.dataset.sub = 'method'; mseg.setAttribute('role', 'group'); mseg.setAttribute('aria-label', '예측 방식');
@@ -41,6 +41,7 @@
     box.append(mseg, ...cards); pickM(P3.method || 'direct');
     extraCards(D).forEach((c) => box.append(c));
     PG.applySub && PG.applySub('perf');
+    PG.refit && PG.refit();
   };
 
   function section(s) {
@@ -122,13 +123,13 @@
     const wrap = mk('div', 'extragrid'), N = nameOf(D), out = [wrap];
     wrap.dataset.sub = 'detail';
     // ③ 발생시각 오차
-    const a = mk('div', 'card'); a.append(mk('h2', null, '가. 예측시각과 실제 발생시각 오차'));
+    const a = mk('div', 'card'); a.append(mk('h2', null, '예측시각과 실제 발생시각 오차'));
     const T = D.timing, t1 = mk('table', 'perf');
     row(t1, ['방식 · 모델', '사전 경보', '평균 선행', '시각 오차', '±15분 이내'], true);
     Object.entries(T.rows).forEach(([id, r]) => row(t1, [N[id] || id, r.events ? `${r.warned}/${r.events} (${fmt(r.warned_pct, 0)}%)` : '—', r.lead_min == null ? '—' : r.lead_min + '분 전', r.abs_err_min == null ? '—' : `평균 ${r.abs_err_min}분 (이르게 ${r.early_pct}%)`, r.within15_pct == null ? '—' : r.within15_pct + '%']));
     const w1 = mk('div', 'tscroll'); w1.append(t1); a.append(w1, mk('p', 'note', `시험기간 실제 피크 사건 ${T.events}건. ` + T.rule));
     // ④ 조건별 정확도
-    const b = mk('div', 'card'); b.append(mk('h2', null, '나. 조건별 예측 정확도 (MAE, kW)'));
+    const b = mk('div', 'card'); b.append(mk('h2', null, '조건별 예측 정확도 (MAE, kW)'));
     const C = D.by_condition, t2 = mk('table', 'perf');
     row(t2, ['방식 · 모델', ...C.conditions], true);
     Object.entries(C.rows).forEach(([id, r]) => row(t2, [N[id] || id, ...C.conditions.map((c) => fmt(r[c], 3))]));
@@ -150,7 +151,7 @@
     }
     // ⑥ 기간별(일별) 예측 정확도
     if (D.by_day) {
-      const Y = D.by_day, d = mk('div', 'card wide'); d.append(mk('h2', null, '다. 기간별 예측 정확도 (시험기간 일별 MAE, kW)'));
+      const Y = D.by_day, d = mk('div', 'card wide'); d.dataset.sub = 'daily'; d.append(mk('h2', null, '기간별 예측 정확도 (시험기간 일별 MAE, kW)'));
       const t4 = mk('table', 'perf');
       row(t4, ['방식 · 모델', ...Y.days.map((x) => `${x.date.slice(5)}(${x.wd})`), '평일 평균', '주말·공휴일 평균'], true);
       Object.entries(Y.rows).forEach(([id, r]) => {
@@ -159,7 +160,7 @@
       });
       const w4 = mk('div', 'tscroll'); w4.append(t4);
       d.append(w4, mk('p', 'note', Y.note));
-      wrap.append(d);
+      out.push(d);
     }
     return out;
   }

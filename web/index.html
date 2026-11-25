@@ -89,13 +89,13 @@
         <h2>점검 우선 Top 5 호실 추이 <span class="sub" id="t5t">—</span></h2>
         <div class="legend" id="t5leg"></div>
         <svg class="chart" id="t5chart" viewBox="0 0 900 280" preserveAspectRatio="none" role="img" aria-label="Top 5 호실 수요전력 추이"></svg>
-        <p class="note">실선 = 지금까지 실측, 점선 점 4개 = 15·30·45·60분 뒤 호실 예측(색칠한 점 = 건물 예상 피크 시각). Top 5 = 건물 예상 피크 시각 예측 kW 상위 5개 호실, 15분마다 다시 고릅니다.</p>
+        <p class="note" title="Top 5 = 건물 예상 피크 시각 예측 kW 상위 5개 호실, 15분마다 다시 고릅니다.">실선 = 실측 · 점선 점 4개 = 15·30·45·60분 뒤 예측 · 색칠한 점 = 건물 예상 피크 시각</p>
       </div>
       <!-- 호실별 피크 예측 가능성: 막대 = 호실 기준 대비 %, 숫자 = 건물 비중 % -->
       <div class="card">
         <h2>호실별 피크 예측 가능성 <span class="sub" id="pbt">—</span></h2>
         <div class="pbars" id="pbars"></div>
-        <p class="note">순서·막대 = 건물 예상 피크 시각의 그 호실 예측 kW (큰 순, 왼쪽 Top 5·경보발령 선택과 같은 순서). 평소의 % = 그 호실 직전 30일 P95(95번째 백분위수) 대비 — 100% 이상(빨강)이면 그 호실이 평소보다 많이 쓸 것으로 예상.</p>
+        <p class="note" title="순서·막대 = 건물 예상 피크 시각의 그 호실 예측 kW (큰 순, 왼쪽 Top 5·경보발령 선택과 같은 순서). 평소의 % = 그 호실 직전 30일 P95(95번째 백분위수) 대비.">막대 = 예측 kW 큰 순 · 평소의 % = 호실 직전 30일 P95 대비 (100% 이상 빨강)</p>
       </div>
     </div>
   </section>
@@ -162,14 +162,14 @@
 
   <!-- ===================== 세 번째 화면: 모델성능 및 오경보율 비교 ===================== -->
   <section class="scr" id="s-perf" hidden>
-    <!-- 하위 메뉴: 주소 #perf/select · #perf/method · #perf/detail · #perf/weather (app.js). 피크 기준 콤보는 모든 하위 메뉴 위에 -->
+    <!-- 하위 메뉴: 주소 #perf/select · method · detail · daily · weather (app.js). 피크 기준 콤보는 모든 하위 메뉴 위에 -->
     <nav class="subtabs" aria-label="모델 성능 비교 하위 메뉴">
-      <a href="#perf/select" data-sub="select">1. 선정 결론</a><a href="#perf/method" data-sub="method">2. 방식별 성능</a><a href="#perf/detail" data-sub="detail">3. 정확도 상세</a><a href="#perf/weather" data-sub="weather">4. 기상 비교</a>
+      <a href="#perf/select" data-sub="select">1. 선정 결론</a><a href="#perf/method" data-sub="method">2. 방식별 성능</a><a href="#perf/detail" data-sub="detail">3. 발생시각·조건별</a><a href="#perf/daily" data-sub="daily">4. 기간별(일별)</a><a href="#perf/weather" data-sub="weather">5. 기상 비교</a>
     </nav>
     <!-- 맨 위: 피크 기준점 선택 (첫 화면 '피크 기준' 콤보박스와 같은 다섯 가지, 서로 연동) -->
     <div class="card auxnote perfhead">
       <div class="chctl"><label for="pthrsel">피크 기준</label><select id="pthrsel" aria-label="성능 비교에 쓸 피크 기준점"></select><span class="note" id="pthrinfo"></span></div>
-      <p id="perfnote">—</p>
+      <p id="perfnote" data-sub="select">—</p>
       <p class="note" id="perfprep" data-sub="select"></p>
     </div>
     <div id="perfsections"></div>

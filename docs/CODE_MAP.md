@@ -45,7 +45,7 @@ API 는 DB 를 직접 고치지 않고(업로드·연락처·경보 기록 제�
 | 사용패턴 분석 7칸 | screen2_patterns.js | `GET /api/patterns` | eda/analysis.py | measurement·weather_15m |
 | 기상 데이터 검토 상자 | screen2_patterns.js `weather` | `/api/patterns` 의 `weather_review` | evaluation/extra.py `weather_summary` | weather_15m·st_eval |
 
-## ③ 모델 성능 비교 — 하위 메뉴 1. 선정 결론 · 2. 방식별 성능 · 3. 정확도 상세 · 4. 기상 비교 (주소 #perf/select·method·detail·weather)
+## ③ 모델 성능 비교 — 하위 메뉴 1. 선정 결론 · 2. 방식별 성능 · 3. 발생시각·조건별 · 4. 기간별(일별) · 5. 기상 비교 (주소 #perf/select·method·detail·daily·weather)
 
 | 화면 요소 | 화면 코드 | API | 계산 코드 | DB 표 / 파일 |
 |---|---|---|---|---|
