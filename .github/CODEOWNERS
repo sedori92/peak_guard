@@ -1,5 +1,6 @@
-# 파트별 담당자 GitHub 아이디를 적으면 PR 검토자로 자동 지정됩니다. (예: /web/ @아이디)
-# 아이디를 채운 뒤 맨 앞 '#' 를 지우세요.
+# CODEOWNERS (코드 담당자 지정 파일)
+# 파트별 담당자 GitHub 아이디를 적으면, 그 폴더를 바꾼 PR(Pull Request, 변경 요청)에 담당자가 검토자(reviewer)로 자동 지정됩니다.
+# 쓰는 법: 줄 맨 앞 '#' 를 지우고, 뒤의 담당 표시를 실제 아이디로 바꾸세요. (예: /web/  @sedori92)
 # /web/                     @front-담당
 # /peakguard/api/           @back-담당
 # /peakguard/collect/       @data-담당
