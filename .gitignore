@@ -19,3 +19,6 @@ reports/*.xlsx
 
 # 작업 중 화면 캡처는 저장소 맨 위에 두지 않음
 /*.png
+
+# Docker 실행 시 생기는 DB 폴더 (연락처 포함)
+/state/

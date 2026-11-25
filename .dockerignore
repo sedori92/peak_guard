@@ -1,0 +1,12 @@
+.git
+data
+state
+models
+reports
+*.db
+.env
+__pycache__
+**/__pycache__
+*.pyc
+.venv
+docs/model_guide

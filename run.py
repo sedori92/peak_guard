@@ -68,8 +68,9 @@ def main() -> None:
         from peakguard.evaluation.report import main as m; m()
     elif step == "5":
         port = rest[rest.index("--port") + 1] if "--port" in rest else "8000"
+        host = rest[rest.index("--host") + 1] if "--host" in rest else "127.0.0.1"   # 다른 PC에서 접속하려면 --host 0.0.0.0
         print(f"브라우저에서 http://localhost:{port}  (API 문서 http://localhost:{port}/docs, 종료 Ctrl+C)")
-        sh([sys.executable, "-m", "uvicorn", "peakguard.api.app:app", "--port", port])
+        sh([sys.executable, "-m", "uvicorn", "peakguard.api.app:app", "--host", host, "--port", port])
     elif step == "6":
         from peakguard.tools.export_static import main as m; m()
     elif step == "7":
