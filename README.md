@@ -9,7 +9,9 @@
 - **예측모델 도감(팀원 학습용): [docs/MODEL_GUIDE.md](docs/MODEL_GUIDE.md)** · 시나리오 테스트: **[docs/TEST_SCENARIOS.md](docs/TEST_SCENARIOS.md)** · 에너지플래너 적용 가능성·개선 방향: **[docs/PLANNER_REVIEW.md](docs/PLANNER_REVIEW.md)** · 기업 시스템(MariaDB) 연계: **[docs/INTEGRATION.md](docs/INTEGRATION.md)**
 - 팀원별 담당 폴더: **[docs/TEAM.md](docs/TEAM.md)** · 깃허브 공동 작업 순서: **[docs/GITHUB_GUIDE.md](docs/GITHUB_GUIDE.md)**
 
-## 1. 실행 — 번호만 입력하면 됩니다
+> **관리자(사용자) 설치는 [docs/DEPLOY.md](docs/DEPLOY.md)** — 파이썬 없이 Docker Desktop 과 `피크가드_시작.bat` 두 번 클릭으로 켭니다.
+
+## 1. 실행 (개발자용) — 번호만 입력하면 됩니다
 ```bash
 pip install -r requirements.txt
 # 데이터 넣기: data/raw/ 에 전력 CSV 8개, data/weather/ 에 ASOS 분자료 CSV (구글 드라이브 팀 폴더)
@@ -43,6 +45,8 @@ python -m peakguard.models.train --compare   # 기상 포함/미포함 비교 �
 ```
 peak_guard/
 ├─ run.py                       번호별 실행기
+├─ 피크가드_시작.bat · _중지.bat · _기록보기.bat · _시작.sh   관리자용 켜기·끄기 (Docker)
+├─ Dockerfile · docker-compose.yml · docker/entrypoint.sh     서버 상자 정의 (docs/DEPLOY.md)
 ├─ requirements.txt · .env.example (DB 주소·기업 DB·기상 API·메일 설정 예시)
 ├─ db/schema.sql                [2] DB 테이블 정의서 (SQLite, MariaDB 로 옮길 때 기준)
 ├─ peakguard/
