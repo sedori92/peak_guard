@@ -114,7 +114,7 @@ def test_split_and_models(day):
 
 
 def test_performance_screen():
-    """세 번째 화면: 위 '채널별 합산 후 예측' / 아래 '채널별 예측 후 합산', 재현율·경보 없음 줄."""
+    """세 번째 화면: 위 '채널 합산 후 예측' / 아래 '채널별 예측 후 합산', 재현율·경보 없음 줄."""
     p = client.get("/api/performance").json()
     assert [s["key"] for s in p["sections"]] == ["direct", "sum"]
     for s in p["sections"]:

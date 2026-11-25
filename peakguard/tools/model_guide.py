@@ -260,7 +260,7 @@ def fig_methods(D, plt):
         ax.add_patch(plt.Rectangle((x, y), w, h, fc=fc, ec=ec, lw=1.6)); ax.text(x + w / 2, y + h / 2, t, ha="center", va="center", fontsize=fs, fontweight="bold" if bold else "normal")
     def arr(a, b, c="#57606a"):
         ax.annotate("", xy=b, xytext=a, arrowprops=dict(arrowstyle="->", color=c, lw=1.5))
-    ax.text(0.25, 0.95, "① 채널별 합산 후 예측 (기업 권장, 선정)", ha="center", fontweight="bold", fontsize=11.5, color=C["lstm"])
+    ax.text(0.25, 0.95, "① 채널 합산 후 예측 (기업 권장, 선정)", ha="center", fontweight="bold", fontsize=11.5, color=C["lstm"])
     box(0.05, 0.62, 0.4, 0.14, "96개 채널 실측을 먼저 더함 → 건물 합계 한 줄", C["line"], C["soft"])
     arr((0.25, 0.62), (0.25, 0.5))
     box(0.1, 0.34, 0.3, 0.14, "모델 1개가 건물 합계를 바로 예측", C["lstm"])

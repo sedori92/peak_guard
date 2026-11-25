@@ -8,7 +8,7 @@
     python -m peakguard.tools.tune --skip-lstm
     python -m peakguard.tools.tune --keep-lstm   # 트리만 다시, Bi-LSTM 은 이전 결과 유지
 
-대상: 선정 방식인 '채널별 합산 후 예측'(건물 합계 한 줄을 바로 예측)의 4개 모델.
+대상: 선정 방식인 '채널 합산 후 예측'(건물 합계 한 줄을 바로 예측)의 4개 모델.
       학습기간으로 학습 → 검증기간(2026-09-15 ~ 10-06) 건물 합계 MAE 로 비교. 시험기간은 보지 않음.
 결과: models/tuning.json  (docs/TUNING.md 는 peakguard.tools.model_report 가 함께 씀)
 판단: 현재 설정보다 검증 MAE 가 2% 이상 좋은 설정이 있으면 교체(모델 파일의 PARAMS_TOTAL 에 반영 후 재학습), 아니면 유지.

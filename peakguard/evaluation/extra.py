@@ -182,7 +182,7 @@ def selection(sections: list[dict]) -> dict:
              "근거 ③ 피크가드의 목적은 피크를 놓치지 않는 것이므로 재현율을 먼저, 그다음 헛경보·MAE 순으로 비교"]
     if db and db is not best:
         dk = db["peak"]
-        lines.append(f"참고: 기업 권장 방식(채널별 합산 후 예측) 안에서는 {db['name']} — 재현율 {round(dk['recall'] * 100)}%, 헛경보 {dk['fp']}건, F1 {db['f1']}, MAE {db['mae']}")
+        lines.append(f"참고: 기업 권장 방식(채널 합산 후 예측) 안에서는 {db['name']} — 재현율 {round(dk['recall'] * 100)}%, 헛경보 {dk['fp']}건, F1 {db['f1']}, MAE {db['mae']}")
     return {"best": best["id"], "best_method": best["method"], "lines": lines,
             "ranking": [{"name": f"{c['method_name']} · {c['name']}", "recall": c["peak"]["recall"], "precision": c["peak"]["precision"],
                          "fp": c["peak"]["fp"], "f1": c["f1"], "mae": c["mae"], "gain": c["gain"]} for c in cand[:6]]}

@@ -17,7 +17,7 @@
 
 모델 (화면 '예측모델 선택'·'방식 선택' 콤보버튼과 같은 구성):
   전일 동일시각 = 기업 기준모델 (어제 같은 시각 값을 그대로 씀)
-  채널별 합산 후 예측 : LightGBM · XGBoost · RandomForest · BiLSTM  (건물 합계 한 줄을 바로 예측)
+  채널 합산 후 예측 : LightGBM · XGBoost · RandomForest · BiLSTM  (건물 합계 한 줄을 바로 예측)
   채널별 예측 후 합산 : LGBM_SUM · XGB_SUM · RF_SUM · LSTM_SUM      (채널 61개 예측을 같은 시각끼리 더함)
 
 결과: DB 의 st_forecast(시험기간 예측값), st_eval(검증·시험 성능), st_peak_eval(오분류표),

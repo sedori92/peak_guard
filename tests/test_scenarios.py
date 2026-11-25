@@ -24,7 +24,7 @@ def _risk(f):
 
 
 def test_s1_open_dashboard_default(days):
-    """S1 관리자가 첫 화면을 연다 → 기본값(채널별 합산 후 예측·Bi-LSTM·2026-11-02)으로 1시간 예측 4칸이 보인다."""
+    """S1 관리자가 첫 화면을 연다 → 기본값(채널 합산 후 예측·Bi-LSTM·2026-11-02)으로 1시간 예측 4칸이 보인다."""
     assert days["default_date"] == "2026-11-02"
     d = client.get("/api/replay", params={"date": days["default_date"], "model": "BiLSTM"}).json()
     assert d["method"] == "direct" and d["model_id"] == "BiLSTM"
