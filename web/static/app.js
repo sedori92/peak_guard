@@ -12,6 +12,7 @@
   PG.applySub = (name) => {
     const cur = PG.sub[name], root = $('#s-' + name);
     if (!cur || !root) return;
+    root.dataset.cur = cur;                                            // 하위 메뉴별 모양 조정용 (style.css)
     root.querySelectorAll('[data-sub]').forEach((e) => {
       if (e.tagName === 'A') { e.setAttribute('aria-current', e.dataset.sub === cur ? 'page' : 'false'); return; }
       e.hidden = !e.dataset.sub.split(' ').includes(cur);
@@ -54,13 +55,15 @@
   PG.fit = () => {
     if (innerWidth < 900) { setZoom(1); redrawActive(); return; }        // 좁은 화면(휴대폰)은 맞추지 않고 스크롤
     const avail = innerHeight - 10;                                    // 아래 여백
-    let z = 1; setZoom(1); redrawActive();
-    for (let k = 0; k < 4; k++) {
-      const nz = Math.min(ZMAX, Math.max(ZMIN, z * avail / bottom()));
-      if (Math.abs(nz - z) < 0.01) break;
-      z = nz; setZoom(z); redrawActive();
-    }
-    if (bottom() > avail + 2 && z > ZMIN) { z = Math.max(ZMIN, z * avail / bottom()); setZoom(z); redrawActive(); }
+    // 표가 커지면 줄바꿈이 생겨 높이가 고르게 늘지 않으므로, '들어가는 가장 큰 배율'을 반씩 좁혀 찾음 (이분 탐색)
+    //   + 표가 가로로 넘쳐 옆으로 밀리지 않아야 '들어감'
+    const wideOk = () => [...document.querySelectorAll('section.scr:not([hidden]) .tscroll')].every((e) => !e.offsetParent || e.scrollWidth <= e.clientWidth + 1);
+    const fits = (z) => { setZoom(z); redrawActive(); return bottom() <= avail && wideOk(); };
+    let lo = ZMIN, hi = ZMAX;
+    if (fits(hi)) return;
+    if (!fits(lo)) return;                                               // 가장 작게 해도 넘치면 그 배율에서 스크롤
+    for (let k = 0; k < 7; k++) { const m = (lo + hi) / 2; if (fits(m)) lo = m; else hi = m; }
+    fits(lo);
   };
   let fitT = null;
   PG.refit = () => { clearTimeout(fitT); fitT = setTimeout(PG.fit, 120); };

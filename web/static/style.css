@@ -464,3 +464,10 @@ header.s1head nav.tabs a,header.s1head .site b,header.s1head .site small,header.
 header.s1head{gap:14px}
 header.s1head .replay{gap:8px}
 body{padding-block:12px 8px}
+
+/* 세 번째 화면 '3. 발생시각·조건별': 피크 기준 줄을 얇게 (표가 더 크게 확대되도록) · '4. 기간별'은 피크 기준과 무관해 그 줄을 숨김 */
+#s-perf[data-cur="detail"] .perfhead{padding:6px 14px}
+#s-perf[data-cur="detail"] .perfhead .chctl{margin:0}
+#s-perf[data-cur="detail"] nav.subtabs,#s-perf[data-cur="daily"] nav.subtabs{margin:8px 0 8px}
+table.daytbl th,table.daytbl td{white-space:nowrap}
+#s-perf table.daytbl th,#s-perf table.daytbl td{padding:6px 5px}

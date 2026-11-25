@@ -151,8 +151,8 @@
     }
     // ⑥ 기간별(일별) 예측 정확도
     if (D.by_day) {
-      const Y = D.by_day, d = mk('div', 'card wide'); d.dataset.sub = 'daily'; d.append(mk('h2', null, '기간별 예측 정확도 (시험기간 일별 MAE, kW)'));
-      const t4 = mk('table', 'perf');
+      const Y = D.by_day, d = mk('div', 'card wide'); d.dataset.sub = 'daily'; d.append(mk('h2', null, '기간별 예측 정확도 (시험기간 일별 MAE, kW · 피크 기준과 상관없음)'));
+      const t4 = mk('table', 'perf daytbl');
       row(t4, ['방식 · 모델', ...Y.days.map((x) => `${x.date.slice(5)}(${x.wd})`), '평일 평균', '주말·공휴일 평균'], true);
       Object.entries(Y.rows).forEach(([id, r]) => {
         const tr = row(t4, [N[id] || id, ...r.daily.map((v) => fmt(v, 3)), fmt(r.weekday, 3), fmt(r.offday, 3)]);
