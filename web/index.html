@@ -12,18 +12,18 @@
 <canvas id="bgnet" aria-hidden="true"></canvas>
 <script src="static/bg.js"></script>
 <div class="wrap">
-  <!-- 맨 위 줄: 로고(누르면 밝은/어두운 화면) · 화면 탭 3개 · 재생 배너 · 실시간 연결 -->
-  <header class="top">
-    <div class="brand"><button class="logo" id="theme" type="button" aria-pressed="false" title="눌러서 밝은 화면 / 어두운 화면 전환" aria-label="밝은 화면과 어두운 화면 전환"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V6z"/><path d="m13 7-3 5h4l-3 5"/></svg></button>피크가드</div>
-    <span class="site">광주테크노파크 생활로봇지원센터 · 96개 계측채널</span>
+  <!-- 맨 위 줄: 로고(누르면 밝은/어두운 화면)·건물 이름 | 화면 탭 3개 | 재생 기준일 · 재생 상태·시각 · 일시정지 · 속도 · [실시간 연결] -->
+  <header class="top s1head">
+    <div class="brand"><button class="logo" id="theme" type="button" aria-pressed="false" title="눌러서 밝은 화면 / 어두운 화면 전환" aria-label="밝은 화면과 어두운 화면 전환"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V6z"/><path d="m13 7-3 5h4l-3 5"/></svg></button>
+      <span class="bname">피크가드</span><span class="site"><b>광주테크노파크 생활로봇지원센터</b><small>96개 계측채널</small></span></div>
     <nav class="tabs" aria-label="화면 선택">
-      <a href="#predict" data-s="predict">예측 및 경보</a>
-      <a href="#history" data-s="history">피크이력 및 영향도 분석</a>
-      <a href="#perf" data-s="perf">모델성능 및 오경보율 비교</a>
+      <a href="#predict" data-s="predict" title="예측 및 경보">예측 및 경보</a>
+      <a href="#history" data-s="history" title="피크이력 및 영향도 분석">피크이력 분석</a>
+      <a href="#perf" data-s="perf" title="모델성능 및 오경보율 비교">모델 성능 비교</a>
     </nav>
     <div class="replay">
-      <span class="live" id="modepill"><i></i><span id="modetxt">재생 중</span></span>
-      <span id="clk">—</span>
+      <label class="dpick">재생 기준일 <select id="dsel" aria-label="재생 기준일 (시험기간)"></select></label>
+      <span class="clkbox"><span class="live" id="modepill"><i></i><span id="modetxt">재생 중</span></span><span id="clk">—</span></span>
       <button id="play" type="button">일시정지</button><button id="spd" type="button">속도 ×1</button>
       <button id="golive" type="button" class="btn-live" title="2026-11-02 16:30 이후 새 데이터를 중복 없이 넣고, 가장 최근 실측 기준으로 예측">실시간 연결</button>
     </div>
@@ -31,31 +31,36 @@
 
   <!-- ===================== 첫 번째 화면: 예측 및 경보 ===================== -->
   <section class="scr" id="s-predict">
-    <!-- 왼쪽 위 콤보버튼: 방식 선택 · 예측모델 선택 · 재생 기준일 | 오른쪽: 합산 수요전력 구성 (호실 34개 / 공용 62개) -->
-    <div class="pickers">
-      <select id="method" aria-label="예측 방식 선택" title="예측 방식"></select>
-      <select id="family" aria-label="예측모델 선택" title="예측모델"></select>
-      <label>재생 기준일 <select id="dsel" aria-label="재생 기준일 (시험기간)"></select></label>
+    <!-- 둘째 줄: 방식·예측모델 콤보 | 합산 수요전력 구성 (호실 34개 / 공용 62개) | 계측 상태 (/api/meter_status) -->
+    <div class="s1bar">
+      <div class="s1pick">
+        <select id="method" aria-label="예측 방식 선택" title="예측 방식"></select>
+        <select id="family" aria-label="예측모델 선택" title="예측모델"></select>
+      </div>
       <div class="sharebox">
         <div class="sharehead"><b>합산 수요전력 구성</b> <span id="sharet">—</span></div>
         <div class="share" id="share"></div>
       </div>
+      <!-- 계측 상태: 들어온 측정 자료만으로 채널별 끊김·빠진 칸·음수·누적 감소·불일치·값 고정 점검 -->
+      <div class="meterbar" id="meterbar"><span class="mt">계측 상태</span><span id="metertxt">—</span><button type="button" id="meterbtn" hidden>점검 필요 채널 보기</button></div>
     </div>
     <div class="livebar" id="livebar" hidden></div>
 
-    <!-- 상태 띠: ① 현재 피크(한전 방식 최대수요전력) | ② 피크 기준(콤보박스) | ③ 정상·주의·위험 | ④ 현재 수요전력 — kW 숫자 같은 크기 -->
-    <section class="status" id="status" aria-live="polite">
-      <div class="peakbox" title="96개 계측채널 단순합의 15분 최대값 (직전 12개월 7~9월·12~2월·당월 중). 분석용 잠정값이며 한전 공식 최대수요전력·계약전력 기준이 아님 (기업 답변)"><div class="l">96채널 합계 최대 (분석용)</div><div class="v" id="pk">—</div><div class="s" id="pks">—</div></div>
-      <div class="thr">
-        <label for="thrsel">피크 기준</label>
-        <select id="thrsel" aria-label="피크 기준점 선택"></select>
-        <b id="thr" class="v">—</b><small id="thrnote"></small>
-      </div>
-      <div class="judge"><span class="pill ok" id="pill">정상</span><div class="msg" id="msg">—</div></div>
-      <div class="nowbox"><div class="l">현재 수요전력 (직전 15분 평균)</div><div class="v" id="k1">—</div><div class="s" id="k1s">96개 계측채널 합산</div></div>
+    <!-- 숫자 카드 4개: ① 96채널 합계 최대(분석용) | ② 피크 기준(콤보) | ③ 판정·다음 1시간 최대 | ④ 현재 수요전력 -->
+    <section class="kcards" id="status" aria-live="polite">
+      <div class="kcard" title="96개 계측채널 단순합의 15분 최대값 (직전 12개월 7~9월·12~2월·당월 중). 분석용 잠정값이며 한전 공식 최대수요전력·계약전력 기준이 아님 (기업 답변)">
+        <div class="kh"><span class="l">96채널 합계 최대 (분석용)</span><span class="badge red" id="pkb">최대치</span></div>
+        <div class="v red" id="pk">—</div><div class="s" id="pks">—</div></div>
+      <div class="kcard">
+        <div class="kh"><label class="l" for="thrsel">피크 기준</label><select id="thrsel" aria-label="피크 기준점 선택"></select></div>
+        <div class="v" id="thr">—</div><div class="s" id="thrnote"></div></div>
+      <div class="kcard judge" id="judge">
+        <div class="kh"><span class="jl"><span class="pill ok" id="pill">정상</span><span class="l" id="jlabel">다음 1시간 최대</span></span><span class="s" id="jupd"></span></div>
+        <div class="vrow"><div class="v" id="jv">—</div><span class="chip ok" id="jchip"></span></div><div class="s" id="jsub"></div></div>
+      <div class="kcard">
+        <div class="kh"><span class="l">현재 수요전력 (직전 15분 평균)</span><span class="badge amber" id="k1b"></span></div>
+        <div class="v" id="k1">—</div><div class="s" id="k1s">96개 계측채널 합산</div></div>
     </section>
-    <!-- 계측 상태: 들어온 측정 자료만으로 채널별 끊김·빠진 칸·음수·누적 감소·불일치·값 고정 점검 (/api/meter_status) -->
-    <div class="meterbar" id="meterbar"><span class="mt">계측 상태</span><span id="metertxt">—</span><button type="button" id="meterbtn" hidden>점검 필요 채널 보기</button></div>
 
     <div class="grid2">
       <!-- 상단 변동선: 직전 피크 기준선 + 건물 합계 예측선 -->

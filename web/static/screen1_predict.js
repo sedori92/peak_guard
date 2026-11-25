@@ -103,19 +103,29 @@
 
   // ---------- 상태 띠 · 숫자 4개 ----------
   function drawStatus(f, s) {
-    $('#status').classList.toggle('risk', s.lvl === 'bad');
+    // ③ 판정 카드: 정상이면 '다음 1시간 최대', 위험이면 '최초 위험 예상 시각'과 최대 예상값
+    $('#judge').classList.toggle('risk', s.lvl === 'bad');
     const pill = $('#pill'); pill.className = 'pill ' + s.lvl;
     pill.textContent = s.lvl === 'bad' ? '위험' : '정상';
-    const msg = $('#msg'); msg.replaceChildren();
-    const line = document.createElement('div');
-    if (f.thr == null) line.append('피크 기준을 계산할 실측이 부족합니다 — 오른쪽에서 다른 기준을 고르세요');
-    else if (s.lvl === 'bad') line.append('최초 위험 예상 ', PG.b(addMin(f.t, 15 * (s.first + 1))), ' · 최대 예상 ', PG.b(fmt(s.mx, 2) + ' kW'), ' · 피크 기준 대비 ', PG.b(fmt(s.mx / f.thr * 100, 0) + '%'),
-      s.mx >= f.thr ? ` (기준 초과 +${fmt(s.mx - f.thr, 2)} kW)` : '');
-    else line.append('다음 1시간 최대 ', PG.b(fmt(s.mx, 2) + ' kW'), ' · 피크 기준 대비 ', PG.b(fmt(s.mx / f.thr * 100, 0) + '%'), ' · 기준까지 여유 ', PG.b(fmt(f.thr - s.mx, 2) + ' kW'));
-    const sm = document.createElement('small');
-    sm.textContent = s.lvl === 'bad' ? `먼저 점검할 호실: ${S.topRooms(f, 3).map((r) => roomName(r[0])).join(', ')} → 오른쪽 '경보발령 선택'에서 발령` : `다음 갱신 ${addMin(f.t, 15)}`;
-    msg.append(line, sm);
-    if (f.thr == null) $('#thr').textContent = '—'; else setv('#thr', fmt(f.thr, 2), 'kW');
+    $('#jupd').textContent = `다음 갱신 ${addMin(f.t, 15)}`;
+    const chip = $('#jchip'), sub = $('#jsub'); sub.replaceChildren();
+    if (f.thr == null) {
+      $('#jlabel').textContent = '다음 1시간 최대'; setv('#jv', fmt(s.mx, 2), 'kW'); chip.textContent = ''; chip.hidden = true;
+      sub.append('피크 기준을 계산할 실측이 부족합니다 — 다른 기준을 고르세요');
+    } else {
+      chip.hidden = false; chip.className = 'chip ' + s.lvl;
+      chip.textContent = `기준 대비 ${fmt(s.mx / f.thr * 100, 0)}%`;
+      chip.title = `다음 1시간 최대 예측 ÷ 피크 기준(${fmt(f.thr, 2)} kW) × 100`;
+      setv('#jv', fmt(s.mx, 2), 'kW');
+      if (s.lvl === 'bad') {
+        $('#jlabel').replaceChildren('최초 위험 예상 ', PG.b(addMin(f.t, 15 * (s.first + 1))));
+        sub.append(s.mx >= f.thr ? `기준 초과 +${fmt(s.mx - f.thr, 2)} kW · ` : '', `먼저 점검: ${S.topRooms(f, 3).map((r) => roomName(r[0])).join(', ')}`);
+      } else {
+        $('#jlabel').textContent = '다음 1시간 최대';
+        sub.append('기준까지 여유 ', PG.b(fmt(f.thr - s.mx, 2) + ' kW'));
+      }
+    }
+    if (f.thr == null) { $('#thr').textContent = '—'; delete $('#thr').dataset.v; } else setv('#thr', fmt(f.thr, 2), 'kW');
     const o = S.thrOpts[S.thrKey];
     // 기준값 설명: 그 기간 15분 값 N개를 크기순으로 세웠을 때 상위 5%가 시작되는 경계 (최대값의 95%가 아님)
     $('#thrnote').textContent = o ? `${o.name} 15분 값 ${(o.n || 0).toLocaleString()}개 중 상위 5% 경계` + (S.live && S.thrKey === 'recent30' && f.thr_note ? ` · ${f.thr_note}` : '') : (f.thr_note || '');
@@ -131,17 +141,20 @@
     setv('#pk', fmt(kw, 2), 'kW');
     $('#pks').textContent = `${when.slice(5)} · ${note === '오늘 새 최대' ? note : '분석용 · 공식 최대수요전력 아님'}`;
     $('#pks').title = note;
-    $('#status').classList.toggle('newpeak', note === '오늘 새 최대');
+    $('#pkb').textContent = note === '오늘 새 최대' ? '오늘 새 최대' : '최대치';
   }
   // 상태 띠 ④: 현재 수요전력 (직전 15분 평균, 96개 계측채널 합산)
   function drawKpi(f) {
     setv('#k1', fmt(f.y, 2), 'kW');
-    $('#k1s').textContent = `${f.t} 기준 · 96개 계측채널 합산` + (f.thr ? ` · 피크 기준 대비 ${fmt(f.y / f.thr * 100, 0)}%` : '');
+    $('#k1s').textContent = `${f.t} 기준 · 96개 계측채널 합산`;
+    const b = $('#k1b'); b.hidden = !f.thr;
+    if (f.thr) { b.textContent = `기준 대비 ${fmt(f.y / f.thr * 100, 0)}%`; b.title = `현재 수요전력 ÷ 피크 기준(${fmt(f.thr, 2)} kW) × 100`; b.className = 'badge ' + (f.y >= f.thr ? 'red' : 'amber'); }
   }
   // ---------- 합산 수요전력 구성 (호실 34개 / 공용 62개) — 콤보버튼 오른쪽 ----------
   function drawShare(f) {
     const tot = f.y, h = tot - f.common;
-    $('#sharet').textContent = `${f.t} 기준 ${fmt(tot, 2)} kW · 호실 ${fmt(h, 2)} kW / 공용 ${fmt(f.common, 2)} kW`;
+    $('#sharet').replaceChildren(`${f.t} 기준 `, PG.b(fmt(tot, 2) + ' kW'));
+    $('#sharet').title = `호실 ${fmt(h, 2)} kW / 공용 ${fmt(f.common, 2)} kW`;
     const sh = $('#share'); sh.replaceChildren();
     [[h, '호실 34개 ' + fmt(h / tot * 100, 0) + '%', css('--amber'), '#fff'], [f.common, '공용 62개 ' + fmt(f.common / tot * 100, 0) + '%', css('--grid'), css('--ink')]]
       .forEach(([v, t, bg, c]) => { const d = document.createElement('div'); d.style.width = (v / tot * 100) + '%'; d.style.background = bg; d.style.color = c; d.textContent = t; sh.append(d); });
