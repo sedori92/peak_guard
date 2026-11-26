@@ -33,7 +33,8 @@
 | 끄기 | `피크가드_중지.bat` (DB·모델·연락처는 그대로 남음) |
 | 진행 상황·오류 보기 | `피크가드_기록보기.bat` |
 | 새 전력 자료 넣기 | 화면 오른쪽 위 **[실시간 연결] → 파일 끌어다놓기**, 또는 CSV 를 `data\incoming` 폴더에 넣고 [실시간 연결] |
-| 컴퓨터를 다시 켰을 때 | Docker Desktop 만 켜면 피크가드도 저절로 다시 켜짐 |
+| 컴퓨터를 다시 켰을 때 | Docker Desktop 만 켜면 피크가드도 저절로 다시 켜짐 (Docker Desktop 톱니바퀴 → General → 'Start Docker Desktop when you sign in to your computer' 체크 시 로그인과 함께 자동) |
+| Docker Desktop 창 | 최소화하거나 X 로 닫아도 계속 동작(작업 표시줄 고래 아이콘). 고래 아이콘 → Quit 하면 피크가드도 멈춤 |
 
 ## 3. 같은 사무실의 다른 PC 에서 보기
 
