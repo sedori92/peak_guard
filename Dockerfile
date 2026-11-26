@@ -18,8 +18,9 @@ COPY web ./web
 COPY db ./db
 COPY tests ./tests
 COPY docker/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh && mkdir -p /app/state /app/models /app/reports /app/data
+# 윈도우에서 내려받으면 줄 끝이 CRLF 로 바뀌어 "exec /entrypoint.sh: no such file" 이 나므로 LF 로 되돌림
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh && mkdir -p /app/state /app/models /app/reports /app/data
 
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60m CMD python -c "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/health')" || exit 1
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["sh", "/entrypoint.sh"]
