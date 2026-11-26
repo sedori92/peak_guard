@@ -7,15 +7,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 \
     DATABASE_URL=sqlite:////app/state/peakguard.db TZ=Asia/Seoul
 WORKDIR /app
 
-# LightGBM·XGBoost 가 쓰는 리눅스 기본 라이브러리 (가벼운 slim 이미지에는 빠져 있음)
-#   libgomp1 = 여러 CPU 동시 계산(OpenMP), libstdc++6 = C++ 실행 라이브러리
-RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 libstdc++6 \
-    && rm -rf /var/lib/apt/lists/*
-
 # 딥러닝(PyTorch)은 그래픽카드 없는 CPU 판으로 (용량 약 1/5)
 RUN pip install torch --index-url https://download.pytorch.org/whl/cpu
 COPY requirements.txt .
 RUN pip install -r requirements.txt
+# LightGBM·XGBoost 가 쓰는 리눅스 기본 라이브러리 (가벼운 slim 이미지에는 빠져 있음)
+#   libgomp1 = 여러 CPU 동시 계산(OpenMP), libstdc++6 = C++ 실행 라이브러리
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 libstdc++6 \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY run.py ./
 COPY peakguard ./peakguard
